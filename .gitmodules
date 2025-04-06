@@ -1,0 +1,12 @@
+[submodule "thirdparty/DROID-SLAM/thirdparty/lietorch"]
+	path = thirdparty/DROID-SLAM/thirdparty/lietorch
+	url = https://github.com/princeton-vl/lietorch
+[submodule "thirdparty/Tracking-Anything-with-DEVA"]
+	path = thirdparty/Tracking-Anything-with-DEVA
+	url = https://github.com/hkchengrex/Tracking-Anything-with-DEVA
+[submodule "thirdparty/DROID-SLAM/thirdparty/eigen"]
+	path = thirdparty/DROID-SLAM/thirdparty/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "thirdparty/MASt3R-SLAM/thirdparty/in3d/thirdparty/pyimgui"]
+	path = thirdparty/MASt3R-SLAM/in3d/thirdparty/pyimgui
+	url = https://github.com/pyimgui/pyimgui.git
