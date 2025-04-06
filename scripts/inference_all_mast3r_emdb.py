@@ -31,7 +31,6 @@ def main(args):
     img_folder = f'{seq_folder}/images'
     hps_folder = f'{seq_folder}/hps'
     os.makedirs(seq_folder, exist_ok=True)
-    os.makedirs(img_folder, exist_ok=True)
     os.makedirs(hps_folder, exist_ok=True)
     
     annfile = f'{root}/{root.split("/")[-2]}_{root.split("/")[-1]}_data.pkl'
@@ -42,6 +41,7 @@ def main(args):
     ##### Extract Frames #####
     print('Extracting frames ...')
     if file.endswith('.mov') or file.endswith('.mp4'):
+        os.makedirs(img_folder, exist_ok=True)
         nframes = video2frames(file, img_folder)
     else:
         copy_images(file, img_folder)
