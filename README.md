@@ -1,6 +1,6 @@
 # NJ: 
 Install the [Mast3r-SLAM](https://github.com/rmurai0610/MASt3R-SLAM.git) first, then install the TRAM </br>
-If you use python==3.11, you probably meets a bug in Chumpy </br>
+If you use python==3.11, you probably meet a bug in Chumpy </br>
 ```
 AttributeError: module 'inspect' has no attribute 'getargspec'. Did you mean: 'getargs'?
 ```
