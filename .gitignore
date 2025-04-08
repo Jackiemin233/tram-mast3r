@@ -14,6 +14,7 @@ results/
 logs_mast3r_slam/
 logs/
 data/
+thirdparty
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
