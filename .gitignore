@@ -11,7 +11,9 @@ data/checkpoints
 *.mp4
 example_video/
 results/
-
+logs_mast3r_slam/
+logs/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

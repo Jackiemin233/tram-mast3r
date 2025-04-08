@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, 'thirdparty/MASt3R-SLAM')
 
-from tqdm import tqdm
+import tqdm
 import numpy as np
 import torch
 import cv2
@@ -18,16 +18,11 @@ import trimesh
 import torch.multiprocessing as mp
 # mp.set_start_method("spawn")
 
-import argparse
 import datetime
 import pathlib
 import sys
 import time
-import cv2
 import lietorch
-import torch
-import tqdm
-import yaml
 from mast3r_slam.global_opt import FactorGraph
 
 from mast3r_slam.config import load_config, config, set_global_config
@@ -42,7 +37,6 @@ from mast3r_slam.mast3r_utils import (
 from mast3r_slam.multiprocess_utils import new_queue, try_get_msg
 from mast3r_slam.tracker import FrameTracker
 from mast3r_slam.visualization import WindowMsg, run_visualization
-import torch.multiprocessing as mp
 
 def relocalization(frame, keyframes, factor_graph, retrieval_database):
     # we are adding and then removing from the keyframe, so we need to be careful.
@@ -161,7 +155,7 @@ def run_backend(cfg, model, states, keyframes, K):
                 idx = states.global_optimizer_tasks.pop(0)
 
 
-def run_mast3r_metric_slam(image_folder, masks, calib = None):
+def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
     torch.backends.cuda.matmul.allow_tf32 = True
     no_viz = True
     save_frames = False
@@ -206,7 +200,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None):
 
     #remove the trajectory from the previous run
     if dataset.save_results:
-        save_dir, seq_name = eval.prepare_savedir("default", dataset)
+        save_dir, seq_name = eval.prepare_savedir(seq, dataset)
         traj_file = save_dir / f"{seq_name}.txt"
         recon_file = save_dir / f"{seq_name}.ply"
         if traj_file.exists():
@@ -305,7 +299,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None):
         i += 1
 
     if dataset.save_results:
-        save_dir, seq_name = eval.prepare_savedir("default", dataset)
+        save_dir, seq_name = eval.prepare_savedir(seq, dataset)
         traj = eval.save_traj(save_dir, f"{seq_name}.txt", dataset.timestamps, keyframes)
         pc_whole, pc = eval.save_reconstruction(
             save_dir,
@@ -317,7 +311,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None):
             save_dir / "keyframes" / seq_name, dataset.timestamps, keyframes
         )
     if save_frames:
-        savedir = pathlib.Path(f"logs/frames/{datetime_now}")
+        savedir = pathlib.Path(f"{save_dir}/frames/{datetime_now}")
         savedir.mkdir(exist_ok=True, parents=True)
         for i, frame in tqdm.tqdm(enumerate(frames), total=len(frames)):
             frame = (frame * 255).clip(0, 255)

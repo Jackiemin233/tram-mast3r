@@ -11,7 +11,7 @@ from pycocotools import mask as masktool
 from lib.pipeline import video2frames, detect_segment_track, visualize_tram
 from lib.camera import run_metric_slam, calibrate_intrinsics, align_cam_to_world, run_smpl_metric_slam, run_smpl_metric_slam_mast3r
 from lib.camera import run_mast3r_metric_slam
-from lib.utils.imutils import copy_images 
+from lib.utils.imutils import copy_images
 import pickle as pkl
 
 import cv2
@@ -24,12 +24,13 @@ warnings.filterwarnings("ignore")
 def main(args):
     # File and folders
     file = args.input
-    root = os.path.dirname(file)
-    seq = os.path.basename(file).split('.')[0]
+    root = os.path.normpath(file)
+    seq = os.path.basename(root).split('.')[0]
 
-    seq_folder = f'results/{seq}'
+    seq_folder = os.path.join(args.output_dir, seq)
     img_folder = f'{seq_folder}/images'
     hps_folder = f'{seq_folder}/hps'
+    smpl_folder = f'{seq_folder}/smpls'
     os.makedirs(seq_folder, exist_ok=True)
     os.makedirs(hps_folder, exist_ok=True)
     
@@ -48,20 +49,25 @@ def main(args):
 
     ##### Detection + SAM + DEVA-Track-Anything #####
     print('Detect, Segment, and Track ...')
-    imgfiles = sorted(glob(f'{img_folder}/*.jpg'))
+    if os.path.exists(f'{seq_folder}/tracks.npy') and os.path.exists(f'{seq_folder}/mask.npy'):
+        print('Found existing mask.npy, restoring...')
+        imgfiles = sorted(glob(f'{img_folder}/*.jpg'))
+        masks_ = np.load(f'{seq_folder}/mask.npy', allow_pickle=True)
+        tracks_ = np.load(f'{seq_folder}/tracks.npy', allow_pickle=True)
+    else:
+        imgfiles = sorted(glob(f'{img_folder}/*.jpg'))
 
-    boxes_, masks_, tracks_, _ = detect_segment_track(imgfiles, seq_folder, thresh=0.25, 
-                                                            min_size=100, save_vos=args.visualize_mask)
-    np.save(f'{seq_folder}/tracks.npy', tracks_)
-    np.save(f'{seq_folder}/mask.npy', masks_)
+        boxes_, masks_, tracks_, _ = detect_segment_track(imgfiles, seq_folder, thresh=0.25, 
+                                                                min_size=100, save_vos=args.visualize_mask)
+        np.save(f'{seq_folder}/tracks.npy', tracks_)
+        np.save(f'{seq_folder}/mask.npy', masks_)
+    
     ##### Run Masked DROID-SLAM #####
     print('Masked Metric SLAM ...')
-
-    masks_ = np.load(f'{seq_folder}/mask.npy', allow_pickle=True)
     masks = np.array([masktool.decode(m) for m in masks_])
     masks = torch.from_numpy(masks)
 
-    traj, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks, cam_int)
+    traj, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks, cam_int, seq)
 
     #==========================================================
     tracks = np.load(f'{seq_folder}/tracks.npy', allow_pickle=True).item()
@@ -89,7 +95,7 @@ def main(args):
             break
 
     #==========================================================
-    cam_R, cam_T = run_smpl_metric_slam_mast3r(traj, pc_whole, pc, kf_idx, smpls=results_persons)
+    cam_R, cam_T = run_smpl_metric_slam_mast3r(traj, pc_whole, pc, kf_idx, smpls=results_persons, smpl_path=smpl_folder)
 
     wd_cam_R, wd_cam_T, spec_f = align_cam_to_world(imgfiles[0], cam_R, cam_T)
 
@@ -98,22 +104,27 @@ def main(args):
             'img_focal': cam_int[0], 'img_center': cam_int[2:], 'spec_focal': spec_f}
 
     np.save(f'{seq_folder}/camera.npy', camera)
-    np.save(f'{seq_folder}/boxes.npy', boxes_)
     np.save(f'{seq_folder}/masks.npy', masks_)
     np.save(f'{seq_folder}/tracks.npy', tracks_)
+    # if os.path.exists(f'{seq_folder}/boxes.npy'):
+    #     np.save(f'{seq_folder}/boxes.npy', boxes_)
 
     ##### Combine camera & human motion #####
     # Render video
-    print('Visualize results ...')
-    visualize_tram(seq_folder, floor_scale=args.floor_scale, bin_size=args.bin_size)
+    # print('Visualize results ...')
+    # visualize_tram(seq_folder, floor_scale=args.floor_scale, bin_size=args.bin_size)
+
+    ##### EMDB Evaluation #####
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=str, default='/hpc2hdd/home/gzhang292/nanjie/project4/dataset/P9/79_outdoor_walk_rectangle', help='path to your EMDB Test Samples')
+    parser.add_argument("--input", type=str, default='。/dataset/P9/79_outdoor_walk_rectangle', help='path to your EMDB Test Samples')
     parser.add_argument("--static_camera", action='store_true', help='whether the camera is static')
     parser.add_argument("--visualize_mask", action='store_true', help='save deva vos for visualization')
     parser.add_argument('--max_humans', type=int, default=20, help='maximum number of humans to reconstruct')
-    parser.add_argument('--output_dir', type=str, default='default', help='the output save directory')
+    parser.add_argument('--output_dir', type=str, default='results', help='the output save directory')
+    parser.add_argument('--bin_size', type=int, default=-1, help='rasterization bin_size; set to [64,128,...] to increase speed')
+    parser.add_argument('--floor_scale', type=int, default=3, help='size of the floor')
     args = parser.parse_args()
     main(args)

@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import torch
+import os
 from torchmin import minimize
 
 import trimesh
@@ -37,7 +38,7 @@ def quaternion_to_matrix(quaternions):
     return o.reshape(quaternions.shape[:-1] + (3, 3))
 
 
-def compute_scales(traj, pc_whole, pc, kf_idx, smpls=None, device="cuda:0"):
+def compute_scales(traj, pc_whole, pc, kf_idx, smpls=None, smpl_path=None, device="cuda:0"):
 
     torch.cuda.set_device(device)
     with torch.no_grad():
@@ -56,7 +57,7 @@ def compute_scales(traj, pc_whole, pc, kf_idx, smpls=None, device="cuda:0"):
 
         smpl_l['pred_verts_cam'] = smpl_l['pred_verts'] + smpl_l['pred_trans'] # 2D (SMPL model forward)
 
-        scale = 1
+        scale = 0.9 # 1
         
         pred_cam_t = traj[:, :3] * scale
         pred_cam_q = traj[:, 3:]
@@ -65,11 +66,13 @@ def compute_scales(traj, pc_whole, pc, kf_idx, smpls=None, device="cuda:0"):
         pred_vert_w = torch.einsum('bij,bnj->bni', pred_cam_r, smpl_l['pred_verts_cam']) + pred_cam_t[:,None] 
 
         # Save the mesh for visualization - debug NOTE: Export
+        os.makedirs(smpl_path, exist_ok=True)
         for idx in range(smpl_l['pred_verts_cam'].shape[0]):
-            trimesh.Trimesh(pred_vert_w[idx], smpls[0]['smpl_faces']).export(f'/hpc2hdd/home/gzhang292/nanjie/project4/tram/vis_smpl/smpl_{idx}.obj')
+            trimesh.Trimesh(pred_vert_w[idx], smpls[0]['smpl_faces']).export(os.path.join(smpl_path, f'{kf_idx[idx]:05d}.obj'))
 
         # TODO:  WIP 4.1
-        return None, None
+        # return None, None
+        return pred_cam_r, pred_cam_t
 
 def est_scale_iterative(slam_depth, pred_depth, iters=10, msk=None):
     """ Simple depth-align by iterative median and thresholding """

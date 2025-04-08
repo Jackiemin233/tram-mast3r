@@ -21,11 +21,11 @@ from .est_scale import compute_scales
 
 # torch.multiprocessing.set_start_method('spawn')
 
-def run_smpl_metric_slam_mast3r(traj, pc_whole, pc, kf_idx, smpls=None):
+def run_smpl_metric_slam_mast3r(traj, pc_whole, pc, kf_idx, smpls=None, smpl_path=None):
     '''
         TODO: no descriptions here, maybe I will write later.
     '''
-    cam_R, cam_T = compute_scales(traj, pc_whole, pc, kf_idx, smpls=smpls)
+    cam_R, cam_T = compute_scales(traj, pc_whole, pc, kf_idx, smpls=smpls, smpl_path=smpl_path)
     
 
     return cam_R, cam_T

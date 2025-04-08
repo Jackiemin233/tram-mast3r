@@ -1,6 +1,7 @@
 import pathlib
 from typing import Optional
 import cv2
+import os
 import numpy as np
 import torch
 from mast3r_slam.dataloader import Intrinsics
@@ -12,7 +13,7 @@ from plyfile import PlyData, PlyElement
 
 
 def prepare_savedir(save_path = 'default', dataset = None):
-    save_dir = pathlib.Path("logs")
+    save_dir = pathlib.Path("logs_mast3r_slam")
     if save_path != "default":
         save_dir = save_dir / save_path
     save_dir.mkdir(exist_ok=True, parents=True)
@@ -52,6 +53,8 @@ def save_traj(
 def save_reconstruction(savedir, filename, keyframes, c_conf_threshold):
     savedir = pathlib.Path(savedir)
     savedir.mkdir(exist_ok=True, parents=True)
+    keyframe_pcd_savedir = pathlib.Path(f"{savedir}/keyframe_pcd/image")
+    keyframe_pcd_savedir.mkdir(exist_ok=True, parents=True)
     pointclouds = []
     colors = []
     for i in range(len(keyframes)):
@@ -67,9 +70,17 @@ def save_reconstruction(savedir, filename, keyframes, c_conf_threshold):
             keyframe.get_average_conf().cpu().numpy().astype(np.float32).reshape(-1)
             > c_conf_threshold
         )
+        # NOTE SWH: remove black person masks
+        black_mask_flat = np.all(keyframe.uimg.cpu().numpy().reshape(-1, 3) == 0, axis=-1)
+        valid = valid & (~black_mask_flat)
+        
         pointclouds.append(pW[valid])
         colors.append(color[valid])
-    pointclouds_ = np.concatenate(pointclouds, axis=0) 
+
+        save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}.ply"), pointclouds[-1], colors[-1])
+        save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}_canon.ply"), keyframe.X_canon.cpu().numpy().reshape(-1, 3), color)
+
+    pointclouds_ = np.concatenate(pointclouds, axis=0)
     colors_ = np.concatenate(colors, axis=0)
 
     save_ply(savedir / filename, pointclouds_, colors_)
@@ -83,7 +94,7 @@ def save_keyframes(savedir, timestamps, keyframes: SharedKeyframes):
     for i in range(len(keyframes)):
         keyframe = keyframes[i]
         t = timestamps[keyframe.frame_id]
-        filename = savedir / f"{t}.png"
+        filename = savedir / f"{keyframe.frame_id:05d}_{t}.png"
         cv2.imwrite(
             str(filename),
             cv2.cvtColor(
