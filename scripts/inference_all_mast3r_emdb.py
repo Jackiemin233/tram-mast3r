@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 def main(args):
     # File and folders
     file = args.input
-    root = os.path.normpath(file)
+    root = os.path.dirname(file)
     seq = os.path.basename(root).split('.')[0]
 
     seq_folder = os.path.join(args.output_dir, seq)
@@ -67,7 +67,7 @@ def main(args):
     masks = np.array([masktool.decode(m) for m in masks_])
     masks = torch.from_numpy(masks)
 
-    traj, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks, cam_int, seq)
+    traj, traj_full, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks, cam_int, seq)
 
     #==========================================================
     tracks = np.load(f'{seq_folder}/tracks.npy', allow_pickle=True).item()
@@ -95,7 +95,7 @@ def main(args):
             break
 
     #==========================================================
-    cam_R, cam_T = run_smpl_metric_slam_mast3r(traj, pc_whole, pc, kf_idx, smpls=results_persons, smpl_path=smpl_folder)
+    cam_R, cam_T = run_smpl_metric_slam_mast3r(traj, traj_full, pc_whole, pc, kf_idx, smpls=results_persons, smpl_path=smpl_folder)
 
     wd_cam_R, wd_cam_T, spec_f = align_cam_to_world(imgfiles[0], cam_R, cam_T)
 
@@ -106,8 +106,6 @@ def main(args):
     np.save(f'{seq_folder}/camera.npy', camera)
     np.save(f'{seq_folder}/masks.npy', masks_)
     np.save(f'{seq_folder}/tracks.npy', tracks_)
-    # if os.path.exists(f'{seq_folder}/boxes.npy'):
-    #     np.save(f'{seq_folder}/boxes.npy', boxes_)
 
     ##### Combine camera & human motion #####
     # Render video

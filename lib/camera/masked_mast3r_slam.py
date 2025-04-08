@@ -218,7 +218,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
     fps_timer = time.time()
 
     frames = []
-
+    Frames = []
     while True:
         mode = states.get_mode()
         msg = try_get_msg(viz2main)
@@ -250,7 +250,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
             else states.get_frame().T_WC
         )
         frame = create_frame(i, img, T_WC, img_size=dataset.img_size, device=device)
-
+        Frames.append(frame)
         if mode == Mode.INIT:
             # Initialize via mono inference, and encoded features neeed for database
             X_init, C_init = mast3r_inference_mono(model, frame)
@@ -301,6 +301,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
     if dataset.save_results:
         save_dir, seq_name = eval.prepare_savedir(seq, dataset)
         traj = eval.save_traj(save_dir, f"{seq_name}.txt", dataset.timestamps, keyframes)
+        traj_full = eval.save_traj_full(dataset.timestamps, keyframes, Frames)
         pc_whole, pc = eval.save_reconstruction(
             save_dir,
             f"{seq_name}.ply",
@@ -321,4 +322,4 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
     print("done")
     backend.join()
     # PCs, Keyframe indexes, traj
-    return traj, pc_whole, pc, keyframes.dataset_idx
+    return traj, traj_full, pc_whole, pc, keyframes.dataset_idx

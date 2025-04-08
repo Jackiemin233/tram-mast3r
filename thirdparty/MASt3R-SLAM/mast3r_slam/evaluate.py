@@ -49,6 +49,32 @@ def save_traj(
         traj = np.concatenate(traj, axis=0)
     return traj
 
+def save_traj_full(
+    timestamps,
+    keyframes: SharedKeyframes,
+    Frames: list,
+    intrinsics: Optional[Intrinsics] = None,
+):
+    # log
+    # logdir = pathlib.Path(logdir)
+    # logdir.mkdir(exist_ok=True, parents=True)
+    # logfile = logdir / logfile
+    # with open(logfile, "w") as f:
+        # for keyframe_id in frames.keyframe_ids:
+    traj = []
+    for i in range(len(Frames)):
+        frame = Frames[i]
+        t = timestamps[frame.frame_id]
+        if intrinsics is None:
+            T_WC = as_SE3(frame.T_WC)
+        else:
+            T_WC = intrinsics.refine_pose_with_calibration(frame)
+        x, y, z, qx, qy, qz, qw = T_WC.data.numpy().reshape(-1)
+        traj.append(T_WC.data.numpy())
+    # concat
+    traj = np.concatenate(traj, axis=0)
+    return traj
+
 
 def save_reconstruction(savedir, filename, keyframes, c_conf_threshold):
     savedir = pathlib.Path(savedir)
