@@ -62,7 +62,7 @@ def main(args):
         imgfiles = sorted(glob(f'{img_folder}/*.jpg'))
 
         boxes_, masks_, tracks_, _ = detect_segment_track(imgfiles, seq_folder, thresh=0.25, 
-                                                          min_size=100, save_vos=args.visualize_mask)
+                                                                min_size=100, save_vos=args.visualize_mask)
         np.save(f'{seq_folder}/tracks.npy', tracks_)
         np.save(f'{seq_folder}/mask.npy', masks_)
     
@@ -74,48 +74,43 @@ def main(args):
     traj, traj_full, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks, cam_int, seq)
 
     #==========================================================
-    if os.path.exists(f'{hps_folder}/hps_track_0.npy'): # We have at least one
+    if os.path.exists(f'{hps_folder}/hps_track_{0}.npy'): # We have at least one
         print('Found existing hps sequences, restoring...')
         hps_list = os.listdir(hps_folder)
         hps_list.sort()
-        results = []
+        results_persons = []
         for hps_file in hps_list:
-            results.append(np.load(os.path.join(hps_folder, hps_file), allow_pickle=True).item())
+            results_persons.append(np.load(os.path.join(hps_folder, hps_file), allow_pickle=True).item())
             
     else:
+        tracks = np.load(f'{seq_folder}/tracks.npy', allow_pickle=True).item()
+        tid = [k for k in tracks.keys()]
+        lens = [len(trk) for trk in tracks.values()]
+        rank = np.argsort(lens)[::-1]
+        tracks = [tracks[tid[r]] for r in rank]
+
         print('Estimate HPS ...')
         model = get_hmr_vimo(checkpoint='data/pretrain/vimo_checkpoint.pth.tar')
-        
-        if args.multiperson:
-            tracks = np.load(f'{seq_folder}/tracks.npy', allow_pickle=True).item()
-            tid = [k for k in tracks.keys()]
-            lens = [len(trk) for trk in tracks.values()]
-            rank = np.argsort(lens)[::-1]
-            tracks = [tracks[tid[r]] for r in rank]
-         
-            results_persons = []
-            for k, trk in enumerate(tracks):
-                valid = np.array([t['det'] for t in trk])
-                boxes = np.concatenate([t['det_box'] for t in trk])
-                frame = np.array([t['frame'] for t in trk])
-                results = model.inference(imgfiles, boxes, valid=valid, frame=frame,
-                                          img_focal=cam_int[0], img_center=cam_int[2:])
-                
-                if results is not None:
-                    results_persons.append(results)
-                    np.save(f'{hps_folder}/hps_track_{k}.npy', results)
-                
-                if k+1 >= args.max_humans:
-                    break
 
-        else:
-            results = model.inference_chunk_emdb(imgfiles, ann_boxes, img_focal=cam_int[0], 
-                                                 img_center=cam_int[2:])
-        
-            np.save(f'{hps_folder}/hps_track_0.npy', results)
+        results = model.inference_chunk_emdb(imgfiles, ann_boxes, img_focal=cam_int[0], 
+                                             img_center=cam_int[2:], normalization=True)
+        # results_persons = []
+        # for k, trk in enumerate(tracks):
+        #     valid = np.array([t['det'] for t in trk])
+        #     boxes = np.concatenate([t['det_box'] for t in trk])
+        #     frame = np.array([t['frame'] for t in trk])
+        #     results = model.inference(imgfiles, boxes, valid=valid, frame=frame,
+        #                               img_focal=cam_int[0], img_center=cam_int[2:])
+            
+        #     if results is not None:
+        #         results_persons.append(results)
+        #         np.save(f'{hps_folder}/hps_track_{k}.npy', results)
+            
+        #     if k+1 >= args.max_humans:
+        #         break
 
     #==========================================================
-    cam_R, cam_T = run_smpl_metric_slam_mast3r(traj, traj_full, pc_whole, pc, kf_idx, smpls=results, smpl_path=smpl_folder)
+    cam_R, cam_T = run_smpl_metric_slam_mast3r(traj, traj_full, pc_whole, pc, kf_idx, smpls=results_persons, smpl_path=smpl_folder)
 
     wd_cam_R, wd_cam_T, spec_f = align_cam_to_world(imgfiles[0], cam_R, cam_T)
 
@@ -124,6 +119,13 @@ def main(args):
             'img_focal': cam_int[0], 'img_center': cam_int[2:], 'spec_focal': spec_f}
 
     np.save(f'{seq_folder}/camera.npy', camera)
+    np.save(f'{seq_folder}/masks.npy', masks_)
+    np.save(f'{seq_folder}/tracks.npy', tracks_)
+
+    ##### Combine camera & human motion #####
+    # Render video
+    # print('Visualize results ...')
+    # visualize_tram(seq_folder, floor_scale=args.floor_scale, bin_size=args.bin_size)
 
     ##### EMDB Evaluation #####
 
@@ -137,6 +139,6 @@ if __name__ == '__main__':
     parser.add_argument('--output_dir', type=str, default='results', help='the output save directory')
     parser.add_argument('--bin_size', type=int, default=-1, help='rasterization bin_size; set to [64,128,...] to increase speed')
     parser.add_argument('--floor_scale', type=int, default=3, help='size of the floor')
-    parser.add_argument('--multiperson', type=bool, default=False, help='Multi tracks, if you use emdb for evaluation, please set false')
+    # parser.add_argument('--skip', type=int, default=3, help='skip the process')
     args = parser.parse_args()
     main(args)

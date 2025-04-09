@@ -128,7 +128,6 @@ def save_keyframes(savedir, timestamps, keyframes: SharedKeyframes):
             ),
         )
 
-
 def save_ply(filename, points, colors):
     colors = colors.astype(np.uint8)
     # Combine XYZ and RGB into a structured array

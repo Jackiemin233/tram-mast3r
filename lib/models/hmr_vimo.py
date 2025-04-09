@@ -8,6 +8,7 @@ from torch.utils.data import default_collate
 from lib.utils.geometry import perspective_projection
 from lib.utils.geometry import rot6d_to_rotmat_hmr2 as rot6d_to_rotmat
 from lib.datasets.track_dataset import TrackDataset
+from lib.datasets.image_dataset import ImageDataset
 
 from .vit import vit_huge
 from .modules import *
@@ -119,7 +120,6 @@ class HMR_VIMO(nn.Module):
 
         s_out = self.smpl.query(out)
         out['pred_verts'] = s_out.vertices 
-        # trimesh.Trimesh(s_out.vertices.cpu()[0], self.smpl.faces).export('/hpc2hdd/home/gzhang292/nanjie/project4/tram/vis/smpl_scale?.obj')
         j3d = s_out.joints
         j2d = self.project(j3d, out['pred_cam'], center, scale, img_focal, img_center)
 
@@ -132,7 +132,6 @@ class HMR_VIMO(nn.Module):
 
         trans_full = self.get_trans(out['pred_cam'], center, scale, img_focal, img_center) # transl in camera space
         out['trans_full'] = trans_full 
-        #trimesh.Trimesh(s_out.vertices.cpu()[0]/scale[0].item() + trans_full[0].cpu().numpy(), self.smpl.faces).export('/hpc2hdd/home/gzhang292/nanjie/project4/tram/vis/smpl_scale?.obj')
         
         return out, iter_preds
     
@@ -182,10 +181,67 @@ class HMR_VIMO(nn.Module):
                 'smpl_faces': results['smpl_faces'],
                 'frame': torch.cat(frame)}
         return results
+    
+    def inference_chunk_emdb(self, imgfiles, ann_boxes, img_focal, img_center,  device='cuda'):
+        db = ImageDataset(imgfiles, ann_boxes, img_focal=img_focal, 
+                          img_center=img_center, normalization=True)
+        # dataloader = torch.utils.data.DataLoader(db, batch_size=64, shuffle=False, num_workers=12)
+        # Results
+        pred_cam = []
+        pred_pose = []
+        pred_shape = []
+        pred_rotmat = []
+        pred_trans = []
+        pred_verts = []
+
+        items = []
+        for i in tqdm(range(len(db))):
+            item = db[i]
+            items.append(item)
+
+            if len(items) < 16:
+                continue
+            elif len(items) == 16:
+                batch = default_collate(items)
+            else:
+                items.pop(0)
+                batch = default_collate(items)
+
+            with torch.no_grad():
+                batch = {k: v.to(device) for k, v in batch.items() if type(v)==torch.Tensor}
+                out, _ = self.forward(batch)
+
+            if i == 15:
+                out = {k:v[:9] for k,v in out.items()}
+            elif i == len(db) - 1:
+                out = {k:v[8:] for k,v in out.items()}
+            else:
+                out = {k:v[[8]] for k,v in out.items()}
+                
+            pred_cam.append(out['pred_cam'].cpu())
+            pred_pose.append(out['pred_pose'].cpu())
+            pred_shape.append(out['pred_shape'].cpu())
+            pred_rotmat.append(out['pred_rotmat'].cpu())
+            pred_trans.append(out['trans_full'].cpu())
+            pred_verts.append(out['pred_verts'].cpu())
+        
+        results = {'pred_cam': torch.cat(pred_cam),
+                'pred_pose': torch.cat(pred_pose),
+                'pred_shape': torch.cat(pred_shape),
+                'pred_rotmat': torch.cat(pred_rotmat),
+                'pred_trans': torch.cat(pred_trans),
+                'pred_verts': torch.cat(pred_verts), # SMPL Verts for each frame
+                'smpl_faces': self.smpl.faces, # SMPL Faces,
+                'img_focal': img_focal,
+                'img_center': img_center,
+                'frame': torch.arange(0, len(db), 1).long() 
+                }     
+        return results   
+        
 
     def inference_chunk(self, imgfiles, boxes, img_focal, img_center, device='cuda'):
         db = TrackDataset(imgfiles, boxes, img_focal=img_focal, 
-                        img_center=img_center, normalization=True, dilate=1.2)
+                          img_center=img_center, normalization=True, dilate=1.2)
 
         # Results
         pred_cam = []

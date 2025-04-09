@@ -14,9 +14,9 @@ Official implementation for the paper: \
 [Yufu Wang](https://yufu-wang.github.io), [Ziyun Wang](https://ziyunclaudewang.github.io/), [Lingjie Liu](https://lingjie0206.github.io/), [Kostas Daniilidis](https://www.cis.upenn.edu/~kostas/)\
 [[Project Page](https://yufu-wang.github.io/tram4d/)]
 
-<img src="data/teaser.jpg" width="700">
+<!-- <img src="data/teaser.jpg" width="700">
 
-<img src="https://github.com/yufu-wang/tram/assets/26578575/e857366a-4b51-42ff-bd16-07d800455015" width="550">
+<img src="https://github.com/yufu-wang/tram/assets/26578575/e857366a-4b51-42ff-bd16-07d800455015" width="550"> -->
 
 ## Updates
 - [2025/02] Update with better gravity & floor prediction. Add EMDB evaluation.
@@ -81,8 +81,6 @@ You can also download our saved results [here](https://drive.google.com/drive/fo
 python scripts/emdb/run_eval.py --split 2 --input_dir "results/emdb"
 ```
 
-
-
 ## Training 
 Sorry for the delay, but we may release an updated version. 
 </br><br>
@@ -97,10 +95,10 @@ We benefit greatly from the following open source works, from which we adapted p
 - [BEDLAM](https://github.com/pixelite1201/BEDLAM): large-scale video dataset
 - [EMDB](https://github.com/eth-ait/emdb): evaluation dataset
 
+
 In addition, the pipeline includes [Detectron2](https://github.com/facebookresearch/detectron2), [Segment-Anything](https://github.com/facebookresearch/segment-anything), and [DEVA-Track-Anything](https://github.com/hkchengrex/Tracking-Anything-with-DEVA).
 
 
-  
 ## Citation
 ```bibtex
 @article{wang2024tram,

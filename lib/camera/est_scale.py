@@ -38,18 +38,22 @@ def quaternion_to_matrix(quaternions):
     return o.reshape(quaternions.shape[:-1] + (3, 3))
 
 
-def compute_scales(traj, traj_full, pc_whole, pc, kf_idx, smpls=None, smpl_path=None, device="cuda:0"):
+def compute_scales(traj, traj_full, pc_whole, pc, kf_idx, smpls=None, smpl_path=None, save_smpl = True, device="cuda:0"):
 
     torch.cuda.set_device(device)
     with torch.no_grad():
-
+        if isinstance(smpls, dict):
+            smpls = [smpls]
+        else:
+            pass
+        #=======================Compute the meteric scales=============================
         traj = torch.tensor(traj).cpu()
         traj_full = torch.tensor(traj_full).cpu()
         kf_len = traj.shape[0]
         kf_idx = kf_idx[:kf_len]
+        
         # Find the longest SMPL sequence (multi-person)
         smpl_l = max(smpls, key = lambda x: len(x['pred_verts']) if 'pred_verts' in x else 0)
-
         # select SMPL attributes in each key frame
         # for k in smpl_l.keys():
         #     if k == 'smpl_faces':
@@ -58,7 +62,7 @@ def compute_scales(traj, traj_full, pc_whole, pc, kf_idx, smpls=None, smpl_path=
 
         smpl_l['pred_verts_cam'] = smpl_l['pred_verts'] + smpl_l['pred_trans'] # 2D (SMPL model forward)
 
-        scale = 1 # 0.9
+        scale = 1 
         
         pred_cam_t = traj_full[:, :3] * scale
         pred_cam_q = traj_full[:, 3:]
@@ -66,13 +70,25 @@ def compute_scales(traj, traj_full, pc_whole, pc, kf_idx, smpls=None, smpl_path=
 
         pred_vert_w = torch.einsum('bij,bnj->bni', pred_cam_r, smpl_l['pred_verts_cam']) + pred_cam_t[:,None] 
 
-        # Save the mesh for visualization - debug NOTE: Export
-        os.makedirs(smpl_path, exist_ok=True)
-        for idx in range(smpl_l['pred_verts_cam'].shape[0]):
-            #trimesh.Trimesh(pred_vert_w[idx], smpls[0]['smpl_faces']).export(os.path.join(smpl_path, f'{kf_idx[idx]:05d}.obj'))
-            trimesh.Trimesh(pred_vert_w[idx], smpls[0]['smpl_faces']).export(os.path.join(smpl_path, f'{idx:05d}.obj'))
-        # TODO:  WIP 4.1
-        # return None, None
+        
+        #=======================Compute the meteric scales=============================
+        # Save the mesh for visualization
+        if save_smpl:
+            for track in range(len(smpls)):
+                smpl = smpls[track]
+                frame_id = smpl['frame']
+                smpl['pred_verts_cam'] = smpl['pred_verts'] + smpl['pred_trans']
+                
+                pred_cam_t = traj_full[frame_id.long(), :3] * scale
+                pred_cam_q = traj_full[frame_id.long(), 3:]
+                pred_cam_r = quaternion_to_matrix(pred_cam_q[:,[3,0,1,2]])
+                
+                pred_vert_w = torch.einsum('bij,bnj->bni', pred_cam_r, smpl['pred_verts_cam']) + pred_cam_t[:,None] 
+                
+                save_path = os.path.join(smpl_path, str(track))
+                os.makedirs(save_path, exist_ok=True)
+                for idx in range(smpl['pred_verts_cam'].shape[0]):
+                    trimesh.Trimesh(pred_vert_w[idx], smpls[0]['smpl_faces']).export(os.path.join(save_path, f'{frame_id.long()[idx]:05d}.obj'))
         return pred_cam_r, pred_cam_t
 
 def est_scale_iterative(slam_depth, pred_depth, iters=10, msk=None):
