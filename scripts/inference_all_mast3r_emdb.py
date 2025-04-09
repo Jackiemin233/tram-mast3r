@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 def main(args):
     # File and folders
     file = args.input
-    root = os.path.dirname(file)
+    root = os.path.normpath(file)
     seq = os.path.basename(root).split('.')[0]
 
     seq_folder = os.path.join(args.output_dir, seq)

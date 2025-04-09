@@ -58,7 +58,7 @@ def compute_scales(traj, traj_full, pc_whole, pc, kf_idx, smpls=None, smpl_path=
 
         smpl_l['pred_verts_cam'] = smpl_l['pred_verts'] + smpl_l['pred_trans'] # 2D (SMPL model forward)
 
-        scale = 0.9 # 1
+        scale = 1 # 0.9
         
         pred_cam_t = traj_full[:, :3] * scale
         pred_cam_q = traj_full[:, 3:]

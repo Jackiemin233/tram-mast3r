@@ -81,7 +81,7 @@ for root in tqdm(emdb):
     gt_cam = smpls[gender](body_pose=tt(poses_body), global_orient=poses_root_cam, betas=tt(betas),
                            pose2rot=True, default_smpl=True)
     gt_vert_cam = gt_cam.vertices
-    gt_j3d_cam = gt_cam.joints[:,:24] 
+    gt_j3d_cam = gt_cam.joints[:,:24]
     
     # PRED
     seq = root.split('/')[-1]
@@ -201,7 +201,7 @@ for root in emdb:
 
     # PRED
     seq = root.split('/')[-1]
-    pred_cam = dict(np.load(f'{input_dir}/camera/{seq}.npz'))
+    pred_cam = dict(np.load(f'{input_dir}/{seq}/camera.npy', allow_pickle=True).item())
 
     pred_camt = torch.tensor(pred_cam['pred_cam_T'])
     pred_camr = torch.tensor(pred_cam['pred_cam_R'])

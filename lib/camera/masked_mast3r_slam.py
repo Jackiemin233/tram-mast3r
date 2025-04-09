@@ -250,7 +250,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
             else states.get_frame().T_WC
         )
         frame = create_frame(i, img, T_WC, img_size=dataset.img_size, device=device)
-        Frames.append(frame)
+        # Frames.append(frame)
         if mode == Mode.INIT:
             # Initialize via mono inference, and encoded features neeed for database
             X_init, C_init = mast3r_inference_mono(model, frame)
@@ -259,6 +259,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
             states.queue_global_optimization(len(keyframes) - 1)
             states.set_mode(Mode.TRACKING)
             states.set_frame(frame)
+            Frames.append(frame)
             i += 1
             continue
 
@@ -267,12 +268,15 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
             if try_reloc:
                 states.set_mode(Mode.RELOC)
             states.set_frame(frame)
+            Frames.append(frame)
 
         elif mode == Mode.RELOC:
             X, C = mast3r_inference_mono(model, frame)
             frame.update_pointmap(X, C)
             states.set_frame(frame)
             states.queue_reloc()
+
+            Frames.append(frame)
             # In single threaded mode, make sure relocalization happen for every frame
             while config["single_thread"]:
                 with states.lock:
