@@ -68,7 +68,7 @@ def compute_scales(traj, traj_full, pc_whole, pc, kf_idx, smpls=None, smpl_path=
         pred_cam_q = traj_full[:, 3:]
         pred_cam_r = quaternion_to_matrix(pred_cam_q[:,[3,0,1,2]])
 
-        pred_vert_w = torch.einsum('bij,bnj->bni', pred_cam_r, smpl_l['pred_verts_cam']) + pred_cam_t[:,None] 
+        pred_vert_w = torch.einsum('bij,bnj->bni', pred_cam_r, smpl_l['pred_verts_cam']) + pred_cam_t[:, None] 
 
         
         #=======================Compute the meteric scales=============================
@@ -79,16 +79,11 @@ def compute_scales(traj, traj_full, pc_whole, pc, kf_idx, smpls=None, smpl_path=
                 frame_id = smpl['frame']
                 smpl['pred_verts_cam'] = smpl['pred_verts'] + smpl['pred_trans']
                 
-                pred_cam_t = traj_full[frame_id.long(), :3] * scale
-                pred_cam_q = traj_full[frame_id.long(), 3:]
-                pred_cam_r = quaternion_to_matrix(pred_cam_q[:,[3,0,1,2]])
-                
-                pred_vert_w = torch.einsum('bij,bnj->bni', pred_cam_r, smpl['pred_verts_cam']) + pred_cam_t[:,None] 
-                
                 save_path = os.path.join(smpl_path, str(track))
                 os.makedirs(save_path, exist_ok=True)
                 for idx in range(smpl['pred_verts_cam'].shape[0]):
                     trimesh.Trimesh(pred_vert_w[idx], smpls[0]['smpl_faces']).export(os.path.join(save_path, f'{frame_id.long()[idx]:05d}.obj'))
+                    trimesh.Trimesh(smpl_l['pred_verts_cam'][idx], smpls[0]['smpl_faces']).export(os.path.join(save_path, f'{frame_id.long()[idx]:05d}_cam.obj'))
         return pred_cam_r, pred_cam_t
 
 def est_scale_iterative(slam_depth, pred_depth, iters=10, msk=None):

@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 def main(args):
     # File and folders
     file = args.input
-    root = os.path.dirname(file)
+    root = os.path.normpath(file)
     seq = os.path.basename(root).split('.')[0]
 
     seq_folder = os.path.join(args.output_dir, seq)
@@ -53,7 +53,7 @@ def main(args):
 
     ##### Detection + SAM + DEVA-Track-Anything #####
     print('Detect, Segment, and Track ...')
-    if os.path.exists(f'{seq_folder}/mask.npy') and os.path.exists(f'{seq_folder}/mask.npy'):
+    if os.path.exists(f'{seq_folder}/mask.npy'):
         print('Found existing mask.npy, restoring...')
         imgfiles = sorted(glob(f'{img_folder}/*.jpg'))
         masks_ = np.load(f'{seq_folder}/mask.npy', allow_pickle=True)

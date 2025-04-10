@@ -96,14 +96,19 @@ def save_reconstruction(savedir, filename, keyframes, c_conf_threshold):
             keyframe.get_average_conf().cpu().numpy().astype(np.float32).reshape(-1)
             > c_conf_threshold
         )
+        # valid_output = (valid.astype(np.uint8)) * 255
+        # cv2.imwrite(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}_mask.png"), valid_output)
         # NOTE SWH: remove black person masks
         black_mask_flat = np.all(keyframe.uimg.cpu().numpy().reshape(-1, 3) == 0, axis=-1)
         valid = valid & (~black_mask_flat)
         
+        # NOTE SWH: ADD pcd mask for scale estimation
+        np.save(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}_mask.npy"), valid)
         pointclouds.append(pW[valid])
         colors.append(color[valid])
 
         save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}.ply"), pointclouds[-1], colors[-1])
+        # save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}.ply"), pW, color)
         save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}_canon.ply"), keyframe.X_canon.cpu().numpy().reshape(-1, 3), color)
 
     pointclouds_ = np.concatenate(pointclouds, axis=0)

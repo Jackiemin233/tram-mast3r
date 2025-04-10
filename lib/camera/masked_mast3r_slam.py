@@ -315,6 +315,13 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
         eval.save_keyframes(
             save_dir / "keyframes" / seq_name, dataset.timestamps, keyframes
         )
+        # NOTE Save K for MOGE
+        K_out = K.detach().cpu().numpy()
+        K_out[0, 0] = K_out[0, 0] / w
+        K_out[0, 2] = K_out[0, 2] / w
+        K_out[1, 1] = K_out[1, 1] / h
+        K_out[1, 2] = K_out[1, 2] / h
+        np.save(save_dir / "K_intrinsics.npy", K_out)
     if save_frames:
         savedir = pathlib.Path(f"{save_dir}/frames/{datetime_now}")
         savedir.mkdir(exist_ok=True, parents=True)

@@ -37,33 +37,51 @@ input_dir = args.input_dir
 #     if ann[f'emdb{spl}']:
 #         emdb.append(root)
 
+# NOTE: emdb seq hard code
+emdb = ['dataset/emdb/P0/09_outdoor_walk']
+
+# EMDB dataset and splits
+# roots = []
+# for p in range(10):
+#     folder = f'./dataset/emdb/P{p}'
+#     root = sorted(glob(f'{folder}/*'))
+#     roots.extend(root)
+
+# emdb = []
+# spl = args.split
+# for root in roots:
+#     annfile = f'{root}/{root.split("/")[-2]}_{root.split("/")[-1]}_data.pkl'
+#     ann = pkl.load(open(annfile, 'rb'))
+#     if ann[f'emdb{spl}']:
+#         emdb.append(root)
+
 # NOTE: emdb seq hard code - For NJ
-emdb = ['dataset/P0/09_outdoor_walk',
-        'dataset/P2/19_indoor_walk_off_mvs',
-        'dataset/P2/20_outdoor_walk',
-        'dataset/P2/24_outdoor_long_walk',
-        'dataset/P3/27_indoor_walk_off_mvs',
-        'dataset/P3/28_outdoor_walk_lunges',
-        'dataset/P3/29_outdoor_stairs_up',
-        'dataset/P3/30_outdoor_stairs_down',
-        'dataset/P4/35_indoor_walk',
-        'dataset/P4/36_outdoor_long_walk',
-        'dataset/P4/37_outdoor_run_circle',
-        'dataset/P5/40_indoor_walk_big_circle',
-        'dataset/P6/48_outdoor_walk_downhill',
-        'dataset/P6/49_outdoor_big_stairs_down',
-        'dataset/P7/55_outdoor_walk',
-        'dataset/P7/56_outdoor_stairs_up_down',
-        'dataset/P7/57_outdoor_rock_chair',
-        'dataset/P7/58_outdoor_parcours',
-        'dataset/P7/61_outdoor_sit_lie_walk',
-        'dataset/P8/64_outdoor_skateboard',
-        'dataset/P8/65_outdoor_walk_straight',
-        'dataset/P9/77_outdoor_stairs_up',
-        'dataset/P9/78_outdoor_stairs_up_down',
-        'dataset/P9/79_outdoor_walk_rectangle',
-        'dataset/P9/80_outdoor_walk_big_circle',
-        ]
+# emdb = ['dataset/P0/09_outdoor_walk',
+#         'dataset/P2/19_indoor_walk_off_mvs',
+#         'dataset/P2/20_outdoor_walk',
+#         'dataset/P2/24_outdoor_long_walk',
+#         'dataset/P3/27_indoor_walk_off_mvs',
+#         'dataset/P3/28_outdoor_walk_lunges',
+#         'dataset/P3/29_outdoor_stairs_up',
+#         'dataset/P3/30_outdoor_stairs_down',
+#         'dataset/P4/35_indoor_walk',
+#         'dataset/P4/36_outdoor_long_walk',
+#         'dataset/P4/37_outdoor_run_circle',
+#         'dataset/P5/40_indoor_walk_big_circle',
+#         'dataset/P6/48_outdoor_walk_downhill',
+#         'dataset/P6/49_outdoor_big_stairs_down',
+#         'dataset/P7/55_outdoor_walk',
+#         'dataset/P7/56_outdoor_stairs_up_down',
+#         'dataset/P7/57_outdoor_rock_chair',
+#         'dataset/P7/58_outdoor_parcours',
+#         'dataset/P7/61_outdoor_sit_lie_walk',
+#         'dataset/P8/64_outdoor_skateboard',
+#         'dataset/P8/65_outdoor_walk_straight',
+#         'dataset/P9/77_outdoor_stairs_up',
+#         'dataset/P9/78_outdoor_stairs_up_down',
+#         'dataset/P9/79_outdoor_walk_rectangle',
+#         'dataset/P9/80_outdoor_walk_big_circle',
+#         ]
 
 # NOTE: emdb seq hard code - For SWH
 # emdb = ['dataset/emdb/P0/09_outdoor_walk',
@@ -93,15 +111,22 @@ emdb = ['dataset/P0/09_outdoor_walk',
 #         'dataset/emdb/P9/80_outdoor_walk_big_circle',
 #         ]
 
+
 # SMPL
 smpl = SMPL()
 smpls = {g:SMPL(gender=g) for g in ['neutral', 'male', 'female']}
+
 
 # Evaluations: world-coordinate SMPL
 accumulator = defaultdict(list)
 m2mm = 1e3
 human_traj = {}
 total_invalid = 0
+
+# NOTE SWH: manual set scale for now
+# scale = 1.15
+scale = 1
+
 
 for root in tqdm(emdb):
     # GT
@@ -157,7 +182,8 @@ for root in tqdm(emdb):
     pred_vert = pred.vertices
     pred_j3d = pred.joints[:, :24]
 
-    pred_camt = torch.tensor(pred_cam['pred_cam_T']) 
+    pred_camt = torch.tensor(pred_cam['pred_cam_T']) * scale
+    print(pred_camt.shape)
     pred_camr = torch.tensor(pred_cam['pred_cam_R'])
    
     pred_vert_w = torch.einsum('bij,bnj->bni', pred_camr, pred_vert) + pred_camt[:,None]
@@ -255,7 +281,7 @@ for root in emdb:
     seq = root.split('/')[-1]
     pred_cam = dict(np.load(f'{input_dir}/{seq}/camera.npy', allow_pickle=True).item())
 
-    pred_camt = torch.tensor(pred_cam['pred_cam_T'])
+    pred_camt = torch.tensor(pred_cam['pred_cam_T']) * scale
     pred_camr = torch.tensor(pred_cam['pred_cam_R'])
     pred_camq = matrix_to_quaternion(pred_camr)
     pred_traj = torch.concat([pred_camt, pred_camq], dim=-1).numpy()
