@@ -19,6 +19,7 @@ from lib.camera.slam_utils import eval_slam
 parser = argparse.ArgumentParser()
 parser.add_argument('--split', type=int, default=2)
 parser.add_argument('--input_dir', type=str, default='./results')
+parser.add_argument('--scale', type=float, default=1, help='set the camera translation scale')
 args = parser.parse_args()
 input_dir = args.input_dir
 
@@ -38,7 +39,8 @@ input_dir = args.input_dir
 #         emdb.append(root)
 
 # NOTE: emdb seq hard code
-emdb = ['dataset/emdb/P0/09_outdoor_walk']
+# emdb = ['dataset/emdb/P0/09_outdoor_walk']
+emdb = ['dataset/emdb/P2/19_indoor_walk_off_mvs']
 
 # EMDB dataset and splits
 # roots = []
@@ -124,9 +126,7 @@ human_traj = {}
 total_invalid = 0
 
 # NOTE SWH: manual set scale for now
-# scale = 1.15
-scale = 1
-
+scale = args.scale
 
 for root in tqdm(emdb):
     # GT

@@ -64,6 +64,12 @@ def process_frame(seq_name, frame_id):
     colors_moge = np.asarray(pcd_moge.colors).reshape(512, 384, 3)
 
     pcd_moge_human = o3d.io.read_point_cloud(moge_human_path)
+    labels = np.array(pcd_moge_human.cluster_dbscan(eps=0.05, min_points=10, print_progress=True))
+    inlier_indices = np.where(labels != -1)[0]
+    pcd_moge_human = pcd_moge_human.select_by_index(inlier_indices)
+
+
+
     points_moge_human = np.asarray(pcd_moge_human.points)
 
     # Process mask
@@ -94,7 +100,7 @@ def process_frame(seq_name, frame_id):
     o3d.io.write_point_cloud(f"{output_dir}/{frame_id}_merged.ply", pcd_merge)
 
     T, s = umeyama_with_scale(res_points_moge, res_points)
-    print(f"[{frame_id}] MOGE -> SLAM estimated scale: {s:.4f}")
+    # print(f"[{frame_id}] MOGE -> SLAM estimated scale: {s:.4f}")
     # scale_list.append(s)
 
     pcd_res_moge.transform(T)
@@ -131,10 +137,10 @@ def process_frame(seq_name, frame_id):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--seq_name', type=str, required=True, help='Sequence name like 09_outdoor_walk')
+    parser.add_argument('--seq', type=str, required=True, help='Sequence name like 09_outdoor_walk')
     args = parser.parse_args()
 
-    base_log_path = f"./logs_mast3r_slam/{args.seq_name}/keyframe_pcd/image"
+    base_log_path = f"./logs_mast3r_slam/{args.seq}/keyframe_pcd/image"
     pcd_files = sorted(glob.glob(os.path.join(base_log_path, "*_canon.ply")))
 
     scale_list = []
@@ -144,9 +150,11 @@ def main():
         filename = os.path.basename(pcd_file)
         frame_id = filename.split("_")[0]
         try:
-            s, ratio = process_frame(args.seq_name, frame_id)
+            s, ratio = process_frame(args.seq, frame_id)
             scale_list.append(s)
-            ratio_list.append(ratio)
+            # NOTE: Emperical clip
+            if ratio > 0.9 and ratio < 1.4:
+                ratio_list.append(ratio)
         except Exception as e:
             print(f"[{frame_id}] Error processing frame: {e}")
 
@@ -159,7 +167,7 @@ def main():
     else:
         avg_ratio = None
 
-    stats_output_path = f"./logs_mast3r_slam/{args.seq_name}/alignment_stats.json"
+    stats_output_path = f"./logs_mast3r_slam/{args.seq}/alignment_stats.json"
     os.makedirs(os.path.dirname(stats_output_path), exist_ok=True)
     with open(stats_output_path, 'w') as f:
         json.dump({
