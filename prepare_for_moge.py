@@ -3,6 +3,8 @@ import cv2
 from glob import glob
 import numpy as np
 import argparse
+import json
+
 
 def resize_and_copy_keyframes(seq):
     keyframe_dir = f"./logs_mast3r_slam/{seq}/keyframes/images"
@@ -47,6 +49,45 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--seq', type=str, required=True, default='09_outdoor_walk')
     args = parser.parse_args()
-    fovx = compute_fov_x(args.seq)
-    print(f"{args.seq}'s fovx: {fovx}")
-    resize_and_copy_keyframes(args.seq)
+    seq = args.seq
+
+    fovx_dict = {}
+
+    emdb = [
+        '09_outdoor_walk',
+        '19_indoor_walk_off_mvs',
+        '20_outdoor_walk',
+        '24_outdoor_long_walk',
+        '27_indoor_walk_off_mvs',
+        '28_outdoor_walk_lunges',
+        '29_outdoor_stairs_up',
+        '30_outdoor_stairs_down',
+        '35_indoor_walk',
+        '36_outdoor_long_walk',
+        '37_outdoor_run_circle',
+        '40_indoor_walk_big_circle',
+        '48_outdoor_walk_downhill',
+        '49_outdoor_big_stairs_down',
+        '55_outdoor_walk',
+        '56_outdoor_stairs_up_down',
+        '57_outdoor_rock_chair',
+        '58_outdoor_parcours',
+        '61_outdoor_sit_lie_walk',
+        '64_outdoor_skateboard',
+        '65_outdoor_walk_straight',
+        '77_outdoor_stairs_up',
+        '78_outdoor_stairs_up_down',
+        '79_outdoor_walk_rectangle',
+        '80_outdoor_walk_big_circle',
+    ]
+
+    for seq in emdb:
+        fovx = compute_fov_x(seq)
+        print(f"{seq}'s fovx: {fovx}")
+        resize_and_copy_keyframes(seq)
+        fovx_dict[seq] = fovx
+
+    # 保存到 JSON 文件
+    with open('fovx_dict.json', 'w') as f:
+        json.dump(fovx_dict, f, indent=4)
+

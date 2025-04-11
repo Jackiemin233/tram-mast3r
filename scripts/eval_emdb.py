@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__) + '/..')
 
+import copy
 import torch
 import argparse
 import numpy as np
@@ -39,8 +40,8 @@ input_dir = args.input_dir
 #         emdb.append(root)
 
 # NOTE: emdb seq hard code
-# emdb = ['dataset/emdb/P0/09_outdoor_walk']
-emdb = ['dataset/emdb/P2/19_indoor_walk_off_mvs']
+emdb = ['dataset/emdb/P0/09_outdoor_walk', 'dataset/emdb/P2/19_indoor_walk_off_mvs']
+# emdb = ['dataset/emdb/P2/19_indoor_walk_off_mvs']
 
 # EMDB dataset and splits
 # roots = []
@@ -183,7 +184,7 @@ for root in tqdm(emdb):
     pred_j3d = pred.joints[:, :24]
 
     pred_camt = torch.tensor(pred_cam['pred_cam_T']) * scale
-    print(pred_camt.shape)
+    # print(pred_camt.shape)
     pred_camr = torch.tensor(pred_cam['pred_cam_R'])
    
     pred_vert_w = torch.einsum('bij,bnj->bni', pred_camr, pred_vert) + pred_camt[:,None]
@@ -260,7 +261,11 @@ for root in tqdm(emdb):
     accumulator['w_mpjpe'].append(w_mpjpe)
     accumulator['rte'].append(rte_align_all)
     accumulator['erve'].append(erve)
-    
+
+
+copied_accumulator = copy.deepcopy(accumulator)
+
+
 for k, v in accumulator.items():
     accumulator[k] = np.concatenate(v).mean()
 
@@ -298,6 +303,8 @@ for root in emdb:
           'stats_metric': stats_metric}
     
     results[seq] = re
+    copied_accumulator['ate'].append(re['stats_slam']['mean'])
+    copied_accumulator['ate_s'].append(re['stats_metric']['mean'])
 
 ate = np.mean([re['stats_slam']['mean'] for re in results.values()])
 ate_s = np.mean([re['stats_metric']['mean'] for re in results.values()])
@@ -310,3 +317,37 @@ for k, v in accumulator.items():
 
 df = pd.DataFrame(list(accumulator.items()), columns=['Metric', 'Value'])
 df.to_excel(f"{args.input_dir}/evaluation.xlsx", index=False)
+
+excel_rows = []
+
+for i, seq in enumerate(human_traj.keys()):
+    print(seq)
+    row = {'seq': seq, 'scale': scale}
+
+    # 加入原本accumulator中的指标
+    for k in copied_accumulator:
+        # print(k)
+        val = copied_accumulator[k][i]
+        if isinstance(val, np.ndarray):
+            row[k] = val.mean() if val.ndim > 0 else val.item()
+        elif torch.is_tensor(val):
+            row[k] = val.mean().item() if val.ndim > 0 else val.item()
+        else:
+            row[k] = val
+
+    excel_rows.append(row)
+
+df = pd.DataFrame(excel_rows)
+df_numeric = df.drop(columns=['seq'])  # 去掉非数值列
+mean_row = df_numeric.mean(numeric_only=True)
+
+# 创建一个 dict，用于添加到 DataFrame 末尾
+mean_row = {'seq': 'mean'}
+mean_row.update(accumulator)
+
+# 添加到 DataFrame 末尾
+df = pd.concat([df, pd.DataFrame([mean_row])], ignore_index=True)
+
+excel_path = f'full_evaluation_results_s{scale}.xlsx'
+df.to_excel(excel_path, index=False)
+print(f"Full evaluation results saved to: {excel_path}")
