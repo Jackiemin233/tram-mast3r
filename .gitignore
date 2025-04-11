@@ -17,6 +17,7 @@ data/
 thirdparty
 vis/
 *.ply
+*.xlsx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
