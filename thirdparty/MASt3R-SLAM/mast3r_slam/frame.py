@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 import lietorch
 import torch
-from mast3r_slam.mast3r_utils import resize_img
+from mast3r_slam.mast3r_utils import resize_img, resize_img_mask
 from mast3r_slam.config import config
 
 
@@ -29,6 +29,7 @@ class Frame:
     N: int = 0
     N_updates: int = 0
     K: Optional[torch.Tensor] = None
+    mask: torch.Tensor =  None
 
     def get_score(self, C):
         filtering_score = config["tracking"]["filtering_score"]
@@ -108,17 +109,22 @@ class Frame:
         return self.C / self.N if self.C is not None else None
 
 
-def create_frame(i, img, T_WC, img_size=512, device="cuda:0"):
+def create_frame(i, img, T_WC, img_size=512, mask = None, device="cuda:0"):
     img = resize_img(img, img_size)
     rgb = img["img"].to(device=device)
+    if mask is not None:
+        mask = resize_img_mask(mask, img_size)
+        mask = mask["img"].to(device=device)
+
     img_shape = torch.tensor(img["true_shape"], device=device)
     img_true_shape = img_shape.clone()
     uimg = torch.from_numpy(img["unnormalized_img"]) / 255.0
     downsample = config["dataset"]["img_downsample"]
+    #NOTE: mask downsample
     if downsample > 1:
         uimg = uimg[::downsample, ::downsample]
         img_shape = img_shape // downsample
-    frame = Frame(i, rgb, img_shape, img_true_shape, uimg, T_WC)
+    frame = Frame(i, rgb, img_shape, img_true_shape, uimg, T_WC, mask = mask)
     return frame
 
 
@@ -233,6 +239,8 @@ class SharedKeyframes:
         # fmt:off
         self.dataset_idx = torch.zeros(buffer, device=device, dtype=torch.int).share_memory_()
         self.img = torch.zeros(buffer, 3, h, w, device=device, dtype=dtype).share_memory_()
+        self.mask = torch.zeros(buffer, h, w, device=device, dtype=dtype).share_memory_()
+        
         self.uimg = torch.zeros(buffer, h, w, 3, device="cpu", dtype=dtype).share_memory_()
         self.img_shape = torch.zeros(buffer, 1, 2, device=device, dtype=torch.int).share_memory_()
         self.img_true_shape = torch.zeros(buffer, 1, 2, device=device, dtype=torch.int).share_memory_()
@@ -264,6 +272,10 @@ class SharedKeyframes:
             kf.pos = self.pos[idx]
             kf.N = int(self.N[idx])
             kf.N_updates = int(self.N_updates[idx])
+            # NOTE: 4.14: Add mask for KF
+            if self.mask.max() != 0:
+                kf.mask = self.mask[idx]
+            
             if config["use_calib"]:
                 kf.K = self.K
             return kf
@@ -276,6 +288,9 @@ class SharedKeyframes:
             self.dataset_idx[idx] = value.frame_id
             self.img[idx] = value.img
             self.uimg[idx] = value.uimg
+            # NOTE: 4.14 Add mask 
+            self.mask[idx] = value.mask
+            
             self.img_shape[idx] = value.img_shape
             self.img_true_shape[idx] = value.img_true_shape
             self.T_WC[idx] = value.T_WC.data

@@ -12,6 +12,52 @@ import os
 
 from lib.core import constants
 
+from tqdm import tqdm
+
+def write_main_mask(input_folder, output_folder):
+
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Step 1: 读取第一帧，找一个非黑的颜色作为目标颜色
+    first_frame_path = os.path.join(input_folder, sorted(os.listdir(input_folder))[0])
+    first_frame = cv2.imread(first_frame_path)
+
+    # 找到一个非黑色像素作为目标颜色
+    non_black = np.where(np.any(first_frame != [0, 0, 0], axis=-1))
+    if len(non_black[0]) == 0:
+        raise ValueError("第一帧中没有非背景像素")
+
+    y0, x0 = non_black[0][0], non_black[1][0]
+    target_color = first_frame[y0, x0].tolist()
+
+    print(f"目标颜色为: {target_color}")
+
+    # Step 2: 遍历所有帧并提取该颜色的mask
+    for fname in tqdm(sorted(os.listdir(input_folder))):
+        if not fname.endswith(('.png', '.jpg')): continue
+
+        img = cv2.imread(os.path.join(input_folder, fname))
+
+        # 创建mask：像素值与目标颜色一致的区域设为255，其余为0
+        mask = cv2.inRange(img, np.array(target_color), np.array(target_color))
+
+        # 如果整张图都没找到目标颜色，则更新 target_color 为当前帧第一个非黑色像素
+        if cv2.countNonZero(mask) == 0:
+            non_black = np.where(np.any(img != [0, 0, 0], axis=-1))
+            if len(non_black[0]) > 0:
+                y0, x0 = non_black[0][0], non_black[1][0]
+                target_color = img[y0, x0].tolist()
+                print(f"[{fname}] 更新目标颜色为: {target_color}")
+
+                # 重新提取新的颜色区域
+                mask = cv2.inRange(img, np.array(target_color), np.array(target_color))
+            else:
+                print(f"[{fname}] 找不到任何非黑像素，跳过该帧")
+                continue
+
+        out_path = os.path.join(output_folder, fname)
+        cv2.imwrite(out_path, mask)
+
 def get_normalization():
     normalize_img = Compose([ToTensor(),
                             Normalize(mean=constants.IMG_NORM_MEAN, 

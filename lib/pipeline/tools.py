@@ -66,7 +66,7 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
     # Run
     masks_ = []
     boxes_ = []
-    bgmasks_ = []
+    #bgmasks_ = []
     for t, imgpath in enumerate(tqdm(imgfiles)):
         img_cv2 = cv2.imread(imgpath)
 
@@ -86,8 +86,6 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
         if len(boxes)>0:
             with autocast('cuda'):
                 predictor.set_image(img_cv2, image_format='BGR')
-                # cv2.imwrite('/hpc2hdd/home/gzhang292/nanjie/project4/tram/vis/mask.png',mask.numpy() * 255)
-                # multiple boxes
                 bb = torch.tensor(boxes[:, :4]).cuda()
                 bb = predictor.transform.apply_boxes_torch(bb, img_cv2.shape[:2])  
                 masks, scores, _ = predictor.predict_torch(
@@ -118,8 +116,8 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
             
         ### Record full mask and boxes
         mask_bit = masktool.encode(np.asfortranarray(mask > 0))
-        bgmask_bit = masktool.encode(np.asfortranarray(mask == 0))
-        bgmasks_.append(bgmask_bit)
+        #bgmask_bit = masktool.encode(np.asfortranarray(mask == 0))
+        #bgmasks_.append(bgmask_bit)
         masks_.append(mask_bit)
         boxes_.append(boxes)
 
@@ -172,11 +170,11 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
                 tracks[idx] = [subj]
 
     tracks = np.array(tracks, dtype=object)
-    bgmasks_ = np.array(bgmasks_, dtype=object)
+    #bgmasks_ = np.array(bgmasks_, dtype=object)
     masks_ = np.array(masks_, dtype=object)
     boxes_ = np.array(boxes_, dtype=object)
     # TODO: return bgmasks, NJ
-    return boxes_, masks_, tracks, bgmasks_
+    return boxes_, masks_, tracks #, bgmasks_
 
 
 def parse_chunks(frame, boxes, min_len=16):

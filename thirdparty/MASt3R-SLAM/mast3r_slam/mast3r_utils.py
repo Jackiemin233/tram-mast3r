@@ -23,7 +23,7 @@ def load_mast3r(path=None, device="cuda"):
 
 def load_retriever(mast3r_model, retriever_path=None, device="cuda"):
     retriever_path = (
-        "checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric_retrieval_trainingfree.pth"
+        "data/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric_retrieval_trainingfree.pth"
         if retriever_path is None
         else retriever_path
     )
@@ -135,6 +135,8 @@ def mast3r_inference_mono(model, frame):
 
     Xii, Xji = einops.rearrange(X, "b h w c -> b (h w) c")
     Cii, Cji = einops.rearrange(C, "b h w -> b (h w) 1")
+    if frame.mask != None: #NOTE 4.13 : confidence Mask - NJ
+        Cii = Cii * einops.rearrange(1-frame.mask, "h w -> (h w) 1")
 
     return Xii, Cii
 
@@ -207,6 +209,10 @@ def mast3r_asymmetric_inference(model, frame_i, frame_j):
 
 
 def mast3r_match_asymmetric(model, frame_i, frame_j, idx_i2j_init=None):
+    '''
+        frame_i: current frame
+        frame_j: keyframe
+    '''    
     X, C, D, Q = mast3r_asymmetric_inference(model, frame_i, frame_j)
 
     b, h, w = X.shape[:-1]
@@ -223,10 +229,16 @@ def mast3r_match_asymmetric(model, frame_i, frame_j, idx_i2j_init=None):
     )
 
     # How rest of system expects it
-    Xii, Xji = einops.rearrange(X, "b h w c -> b (h w) c")
+    Xii, Xji = einops.rearrange(X, "b h w c -> b (h w) c")    
     Cii, Cji = einops.rearrange(C, "b h w -> b (h w) 1")
     Dii, Dji = einops.rearrange(D, "b h w c -> b (h w) c")
     Qii, Qji = einops.rearrange(Q, "b h w -> b (h w) 1")
+    
+    if frame_i.mask != None: #NOTE 4.13 : confidence Mask - NJ
+        Cii = Cii * einops.rearrange(1-frame_i.mask, "h w -> (h w) 1")
+        
+    # if frame_j.mask != None: #NOTE 4.14 掉点？
+    #     Cji = Cji * einops.rearrange(1-frame_j.mask, "h w -> (h w) 1") 
 
     return idx_i2j, valid_match_j, Xii, Cii, Qii, Xji, Cji, Qji
 
@@ -266,6 +278,41 @@ def resize_img(img, size, square_ok=False, return_transformation=False):
     res = dict(
         img=ImgNorm(img)[None],
         true_shape=np.int32([img.size[::-1]]),
+        unnormalized_img=np.asarray(img),
+    )
+    if return_transformation:
+        scale_w = W1 / W
+        scale_h = H1 / H
+        half_crop_w = (W - img.size[0]) / 2
+        half_crop_h = (H - img.size[1]) / 2
+        return res, (scale_w, scale_h, half_crop_w, half_crop_h)
+
+    return res
+
+def resize_img_mask(img, size, square_ok=False, return_transformation=False):
+    assert size == 224 or size == 512
+    # numpy to PIL format
+    img = PIL.Image.fromarray(np.uint8(img * 255))
+    W1, H1 = img.size
+    if size == 224:
+        # resize short side to 224 (then crop)
+        img = _resize_pil_image(img, round(size * max(W1 / H1, H1 / W1)))
+    else:
+        # resize long side to 512
+        img = _resize_pil_image(img, size)
+    W, H = img.size
+    cx, cy = W // 2, H // 2
+    if size == 224:
+        half = min(cx, cy)
+        img = img.crop((cx - half, cy - half, cx + half, cy + half))
+    else:
+        halfw, halfh = ((2 * cx) // 16) * 8, ((2 * cy) // 16) * 8
+        if not (square_ok) and W == H:
+            halfh = 3 * halfw / 4
+        img = img.crop((cx - halfw, cy - halfh, cx + halfw, cy + halfh))
+
+    res = dict(
+        img = (torch.from_numpy(np.array(img)).float() / 255),
         unnormalized_img=np.asarray(img),
     )
     if return_transformation:

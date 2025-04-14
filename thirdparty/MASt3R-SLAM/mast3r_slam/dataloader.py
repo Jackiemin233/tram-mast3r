@@ -283,14 +283,32 @@ class RGBFiles_Masks(MonocularDataset):
         self.rgb_files = natsorted(list((self.dataset_path).glob("*.jpg")))
         self.timestamps = np.arange(0, len(self.rgb_files)).astype(self.dtype) / 30.0
         self.masks = masks.numpy()
+
+    def get_image(self, idx):
+        img, mask = self.read_img(idx)
+        if self.use_calibration:
+            img = self.camera_intrinsics.remap(img)
+        return img.astype(self.dtype) / 255.0, mask
         
     def read_img(self, idx):
         # Add masks
         img = cv2.imread(self.rgb_files[idx])
         mask = self.masks[idx]
         masked_image = img * np.expand_dims((1-mask), -1)
-        return cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB)
+        return cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB), mask
 
+    def get_img_shape(self):
+        img, _ = self.read_img(0)
+        raw_img_shape = img.shape
+        img = resize_img(img, self.img_size)
+        # 3XHxW, HxWx3 -> HxW, HxW
+        return img["img"][0].shape[1:], raw_img_shape[:2]
+
+    def __getitem__(self, idx):
+        # Call get_image before timestamp for realsense camera
+        img, mask = self.get_image(idx)
+        timestamp = self.get_timestamp(idx)
+        return timestamp, img, mask
 
 class Intrinsics:
     def __init__(self, img_size, W, H, K_orig, K, distortion, mapx, mapy):

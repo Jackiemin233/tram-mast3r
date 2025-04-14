@@ -16,7 +16,6 @@ from ..utils.rotation_conversions import quaternion_to_matrix
 import trimesh
 
 import torch.multiprocessing as mp
-# mp.set_start_method("spawn")
 
 import datetime
 import pathlib
@@ -161,6 +160,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
     save_frames = False
     torch.set_grad_enabled(False)
     device = "cuda:0"
+    #mp.set_start_method("spawn")
     datetime_now = str(datetime.datetime.now()).replace(" ", "_")
 
     use_calib = False if calib == None else True
@@ -174,14 +174,13 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
     dataset = load_dataset(image_folder, masks)
     dataset.subsample(config["dataset"]["subsample"])
     h, w = dataset.get_img_shape()[0]
-    H, W = dataset.get_image(0).shape[0], dataset.get_image(0).shape[1]
+    H, W = dataset.get_image(0)[0].shape[0], dataset.get_image(0)[0].shape[1]
     
     keyframes = SharedKeyframes(manager, h, w)
     states = SharedStates(manager, h, w)
 
     model = load_mast3r('data/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth',device=device)
     model.share_memory()
-
 
     K = None
     if calib != None:        
@@ -239,7 +238,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
             states.set_mode(Mode.TERMINATED)
             break
 
-        timestamp, img = dataset[i]
+        timestamp, img, mask = dataset[i] # add mask here
         if save_frames:
             frames.append(img)
 
@@ -249,10 +248,10 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
             if i == 0
             else states.get_frame().T_WC
         )
-        frame = create_frame(i, img, T_WC, img_size=dataset.img_size, device=device)
+        frame = create_frame(i, img, T_WC, img_size=dataset.img_size, mask=mask, device=device)
         # Frames.append(frame)
         if mode == Mode.INIT:
-            # Initialize via mono inference, and encoded features neeed for database
+            # Initialize via mono inference, and encoded features need for database
             X_init, C_init = mast3r_inference_mono(model, frame)
             frame.update_pointmap(X_init, C_init)
             keyframes.append(frame)

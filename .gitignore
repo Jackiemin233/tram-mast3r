@@ -11,13 +11,16 @@ data/checkpoints
 *.mp4
 example_video/
 results/
+results*
 logs_mast3r_slam/
+logs*
 logs/
 data/
 thirdparty
 vis/
 *.ply
 *.xlsx
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
