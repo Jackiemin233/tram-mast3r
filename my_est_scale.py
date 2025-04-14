@@ -6,6 +6,35 @@ import glob
 import argparse
 import json
 
+
+emdb2_names = [
+    "09_outdoor_walk",
+    "19_indoor_walk_off_mvs",
+    "20_outdoor_walk",
+    "24_outdoor_long_walk",
+    "27_indoor_walk_off_mvs",
+    "28_outdoor_walk_lunges",
+    "29_outdoor_stairs_up",
+    "30_outdoor_stairs_down",
+    "35_indoor_walk",
+    "36_outdoor_long_walk",
+    "37_outdoor_run_circle",
+    "40_indoor_walk_big_circle",
+    "48_outdoor_walk_downhill",
+    "49_outdoor_big_stairs_down",
+    "55_outdoor_walk",
+    "56_outdoor_stairs_up_down",
+    "57_outdoor_rock_chair",
+    "58_outdoor_parcours",
+    "61_outdoor_sit_lie_walk",
+    "65_outdoor_walk_straight",
+    "64_outdoor_skateboard",
+    "77_outdoor_stairs_up",
+    "78_outdoor_stairs_up_down",
+    "79_outdoor_walk_rectangle",
+    "80_outdoor_walk_big_circle",
+]
+
 def umeyama_with_scale(src, tgt):
     assert src.shape == tgt.shape
     n, dim = src.shape
@@ -64,9 +93,9 @@ def process_frame(seq_name, frame_id):
     colors_moge = np.asarray(pcd_moge.colors).reshape(512, 384, 3)
 
     pcd_moge_human = o3d.io.read_point_cloud(moge_human_path)
-    labels = np.array(pcd_moge_human.cluster_dbscan(eps=0.05, min_points=10, print_progress=True))
-    inlier_indices = np.where(labels != -1)[0]
-    pcd_moge_human = pcd_moge_human.select_by_index(inlier_indices)
+    # labels = np.array(pcd_moge_human.cluster_dbscan(eps=0.05, min_points=10, print_progress=True))
+    # inlier_indices = np.where(labels != -1)[0]
+    # pcd_moge_human = pcd_moge_human.select_by_index(inlier_indices)
 
 
 
@@ -130,52 +159,60 @@ def process_frame(seq_name, frame_id):
     bbox_smpl = compute_bbox_size(np.asarray(smpl_mesh.vertices))
     bbox_moge = compute_bbox_size(np.asarray(pcd_moge_human.points))
     ratios =  bbox_smpl / bbox_moge
-    print(f"[{frame_id}] Bounding box Y-axis ratio (SMPL/SLAM): {ratios[1]:.4f}")
+    # print(f"[{frame_id}] Bounding box Y-axis ratio (SMPL/SLAM): {ratios[1]:.4f}")
     # ratio_list.append(ratios[1])
     return s, ratios[1]
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--seq', type=str, required=True, help='Sequence name like 09_outdoor_walk')
-    args = parser.parse_args()
+    avg_ratio_dict = {}
+    
+    for seq in emdb2_names:
+        print(f"\n=======Processing sequence: {seq}=======")
+        
+        base_log_path = f"./logs_mast3r_slam/{seq}/keyframe_pcd/image"
+        pcd_files = sorted(glob.glob(os.path.join(base_log_path, "*_canon.ply")))
 
-    base_log_path = f"./logs_mast3r_slam/{args.seq}/keyframe_pcd/image"
-    pcd_files = sorted(glob.glob(os.path.join(base_log_path, "*_canon.ply")))
+        scale_list = []
+        ratio_list = []
 
-    scale_list = []
-    ratio_list = []
+        for pcd_file in pcd_files:
+            filename = os.path.basename(pcd_file)
+            frame_id = filename.split("_")[0]
+            try:
+                s, ratio = process_frame(seq, frame_id)
+                scale_list.append(s)
+                # NOTE: Emperical clip
+                if 0.9 < ratio < 1.4:
+                    ratio_list.append(ratio)
+            except Exception as e:
+                print(f"[{frame_id}] Error processing frame: {e}")
 
-    for pcd_file in pcd_files:
-        filename = os.path.basename(pcd_file)
-        frame_id = filename.split("_")[0]
-        try:
-            s, ratio = process_frame(args.seq, frame_id)
-            scale_list.append(s)
-            # NOTE: Emperical clip
-            if ratio > 0.9 and ratio < 1.4:
-                ratio_list.append(ratio)
-        except Exception as e:
-            print(f"[{frame_id}] Error processing frame: {e}")
+        # print("\n=== Summary ===")
+        if ratio_list:
+            avg_ratio = sum(ratio_list) / len(ratio_list)
+            print(f"{seq} Average SMPL/SLAM ratio: {avg_ratio:.4f}")
+        else:
+            avg_ratio = None
+            print(f"{seq} Average SMPL/SLAM ratio WRONG !!!!!!!!!!")
 
-    print("\n=== Summary ===")
-    # print("All estimated scales:", scale_list)
-    # print("All Y-axis ratios (MOGE/SMPL):", ratio_list)
-    if ratio_list:
-        avg_ratio = sum(ratio_list) / len(ratio_list)
-        print(f"Average Y-axis ratio (SMPL/SLAM): {avg_ratio:.4f}")
-    else:
-        avg_ratio = None
+        avg_ratio_dict[seq] = avg_ratio
 
-    stats_output_path = f"./logs_mast3r_slam/{args.seq}/alignment_stats.json"
-    os.makedirs(os.path.dirname(stats_output_path), exist_ok=True)
-    with open(stats_output_path, 'w') as f:
-        json.dump({
-            "scale_list": scale_list,
-            "ratio_list": ratio_list,
-            "avg_ratio": avg_ratio
-        }, f, indent=4)
-    print(f"\nSaved stats to {stats_output_path}")
+        stats_output_path = f"./logs_mast3r_slam/{seq}/alignment_stats.json"
+        os.makedirs(os.path.dirname(stats_output_path), exist_ok=True)
+        with open(stats_output_path, 'w') as f:
+            json.dump({
+                "scale_list": scale_list,
+                "ratio_list": ratio_list,
+                "avg_ratio": avg_ratio
+            }, f, indent=4)
+        print(f"Saved stats to {stats_output_path}")
+    
+    with open("avg_ratios.json", "w") as f:
+        json.dump(avg_ratio_dict, f, indent=4)
+    
+    print(f"Saved stats to {"avg_ratios.json"}")
+
 
 
 

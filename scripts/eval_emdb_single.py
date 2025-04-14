@@ -19,7 +19,7 @@ from lib.camera.slam_utils import eval_slam
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--split', type=int, default=2)
-parser.add_argument('--input_dir', type=str, default='./results_debug_debug')
+parser.add_argument('--input_dir', type=str, default='./results')
 parser.add_argument('--scale', type=float, default=1, help='set the camera translation scale')
 args = parser.parse_args()
 input_dir = args.input_dir
@@ -40,105 +40,9 @@ input_dir = args.input_dir
 #         emdb.append(root)
 
 # NOTE: emdb seq hard code
-#emdb = ['dataset/emdb/P0/09_outdoor_walk', 'dataset/emdb/P2/19_indoor_walk_off_mvs']
-emdb = [
-        '../dataset/P0/09_outdoor_walk',
-        '../dataset/P2/19_indoor_walk_off_mvs',
-        # '../dataset/P2/20_outdoor_walk',
-        # '../dataset/P2/24_outdoor_long_walk',
-        # '../dataset/P3/27_indoor_walk_off_mvs',
-        # '../dataset/P3/28_outdoor_walk_lunges',
-        # '../dataset/P3/29_outdoor_stairs_up',
-        # '../dataset/P3/30_outdoor_stairs_down',
-        # '../dataset/P4/35_indoor_walk',
-        # '../dataset/P4/36_outdoor_long_walk',
-        # '../dataset/P4/37_outdoor_run_circle',
-        # '../dataset/P5/40_indoor_walk_big_circle',
-        # '../dataset/P6/48_outdoor_walk_downhill',
-        # '../dataset/P6/49_outdoor_big_stairs_down',
-        # '../dataset/P7/55_outdoor_walk',
-        # '../dataset/P7/56_outdoor_stairs_up_down',
-        # '../dataset/P7/57_outdoor_rock_chair',
-        # '../dataset/P7/58_outdoor_parcours',
-        # '../dataset/P7/61_outdoor_sit_lie_walk',
-        # '../dataset/P8/64_outdoor_skateboard',
-        # '../dataset/P8/65_outdoor_walk_straight',
-        # '../dataset/P9/77_outdoor_stairs_up',
-        # '../dataset/P9/78_outdoor_stairs_up_down',
-        # '../dataset/P9/79_outdoor_walk_rectangle',
-        # '../dataset/P9/80_outdoor_walk_big_circle',
-        ]
-#emdb = ['dataset/emdb/P0/09_outdoor_walk', 'dataset/emdb/P2/19_indoor_walk_off_mvs']
-emdb = [
-        '../dataset/P0/09_outdoor_walk',
-        '../dataset/P2/19_indoor_walk_off_mvs',
-        # '../dataset/P2/20_outdoor_walk',
-        # '../dataset/P2/24_outdoor_long_walk',
-        # '../dataset/P3/27_indoor_walk_off_mvs',
-        # '../dataset/P3/28_outdoor_walk_lunges',
-        # '../dataset/P3/29_outdoor_stairs_up',
-        # '../dataset/P3/30_outdoor_stairs_down',
-        # '../dataset/P4/35_indoor_walk',
-        # '../dataset/P4/36_outdoor_long_walk',
-        # '../dataset/P4/37_outdoor_run_circle',
-        # '../dataset/P5/40_indoor_walk_big_circle',
-        # '../dataset/P6/48_outdoor_walk_downhill',
-        # '../dataset/P6/49_outdoor_big_stairs_down',
-        # '../dataset/P7/55_outdoor_walk',
-        # '../dataset/P7/56_outdoor_stairs_up_down',
-        # '../dataset/P7/57_outdoor_rock_chair',
-        # '../dataset/P7/58_outdoor_parcours',
-        # '../dataset/P7/61_outdoor_sit_lie_walk',
-        # '../dataset/P8/64_outdoor_skateboard',
-        # '../dataset/P8/65_outdoor_walk_straight',
-        # '../dataset/P9/77_outdoor_stairs_up',
-        # '../dataset/P9/78_outdoor_stairs_up_down',
-        # '../dataset/P9/79_outdoor_walk_rectangle',
-        # '../dataset/P9/80_outdoor_walk_big_circle',
-        ]
+# emdb = ['dataset/emdb/P0/09_outdoor_walk', 'dataset/emdb/P2/19_indoor_walk_off_mvs']
+emdb = ['dataset/emdb/P2/20_outdoor_walk']
 
-# EMDB dataset and splits
-# roots = []
-# for p in range(10):
-#     folder = f'./dataset/emdb/P{p}'
-#     root = sorted(glob(f'{folder}/*'))
-#     roots.extend(root)
-
-# emdb = []
-# spl = args.split
-# for root in roots:
-#     annfile = f'{root}/{root.split("/")[-2]}_{root.split("/")[-1]}_data.pkl'
-#     ann = pkl.load(open(annfile, 'rb'))
-#     if ann[f'emdb{spl}']:
-#         emdb.append(root)
-
-# NOTE: emdb seq hard code - For NJ
-# emdb = ['dataset/P0/09_outdoor_walk',
-#         'dataset/P2/19_indoor_walk_off_mvs',
-#         'dataset/P2/20_outdoor_walk',
-#         'dataset/P2/24_outdoor_long_walk',
-#         'dataset/P3/27_indoor_walk_off_mvs',
-#         'dataset/P3/28_outdoor_walk_lunges',
-#         'dataset/P3/29_outdoor_stairs_up',
-#         'dataset/P3/30_outdoor_stairs_down',
-#         'dataset/P4/35_indoor_walk',
-#         'dataset/P4/36_outdoor_long_walk',
-#         'dataset/P4/37_outdoor_run_circle',
-#         'dataset/P5/40_indoor_walk_big_circle',
-#         'dataset/P6/48_outdoor_walk_downhill',
-#         'dataset/P6/49_outdoor_big_stairs_down',
-#         'dataset/P7/55_outdoor_walk',
-#         'dataset/P7/56_outdoor_stairs_up_down',
-#         'dataset/P7/57_outdoor_rock_chair',
-#         'dataset/P7/58_outdoor_parcours',
-#         'dataset/P7/61_outdoor_sit_lie_walk',
-#         'dataset/P8/64_outdoor_skateboard',
-#         'dataset/P8/65_outdoor_walk_straight',
-#         'dataset/P9/77_outdoor_stairs_up',
-#         'dataset/P9/78_outdoor_stairs_up_down',
-#         'dataset/P9/79_outdoor_walk_rectangle',
-#         'dataset/P9/80_outdoor_walk_big_circle',
-#         ]
 
 # NOTE: emdb seq hard code - For SWH
 # emdb = ['dataset/emdb/P0/09_outdoor_walk',
@@ -368,40 +272,3 @@ accumulator['ate_s'] = ate_s
 # Save evaluation results
 for k, v in accumulator.items():
     print(k, accumulator[k])
-
-df = pd.DataFrame(list(accumulator.items()), columns=['Metric', 'Value'])
-df.to_excel(f"{args.input_dir}/evaluation.xlsx", index=False)
-
-excel_rows = []
-
-for i, seq in enumerate(human_traj.keys()):
-    print(seq)
-    row = {'seq': seq, 'scale': scale}
-
-    # 加入原本accumulator中的指标
-    for k in copied_accumulator:
-        # print(k)
-        val = copied_accumulator[k][i]
-        if isinstance(val, np.ndarray):
-            row[k] = val.mean() if val.ndim > 0 else val.item()
-        elif torch.is_tensor(val):
-            row[k] = val.mean().item() if val.ndim > 0 else val.item()
-        else:
-            row[k] = val
-
-    excel_rows.append(row)
-
-df = pd.DataFrame(excel_rows)
-df_numeric = df.drop(columns=['seq'])  # 去掉非数值列
-mean_row = df_numeric.mean(numeric_only=True)
-
-# 创建一个 dict，用于添加到 DataFrame 末尾
-mean_row = {'seq': 'mean'}
-mean_row.update(accumulator)
-
-# 添加到 DataFrame 末尾
-df = pd.concat([df, pd.DataFrame([mean_row])], ignore_index=True)
-
-excel_path = f'full_evaluation_results_s{scale}.xlsx'
-df.to_excel(excel_path, index=False)
-print(f"Full evaluation results saved to: {excel_path}")

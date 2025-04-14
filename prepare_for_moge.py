@@ -46,11 +46,6 @@ def compute_fov_x(seq):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--seq', type=str, required=True, default='09_outdoor_walk')
-    args = parser.parse_args()
-    seq = args.seq
-
     fovx_dict = {}
 
     emdb = [
