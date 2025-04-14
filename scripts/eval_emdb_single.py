@@ -42,12 +42,12 @@ input_dir = args.input_dir
 # NOTE: emdb seq hard code - For SWH
 emdb = [
         # 'dataset/emdb/P0/09_outdoor_walk',
-        # 'dataset/emdb/P2/19_indoor_walk_off_mvs',
+        'dataset/emdb/P2/19_indoor_walk_off_mvs',
         # 'dataset/emdb/P2/20_outdoor_walk',
         # 'dataset/emdb/P2/24_outdoor_long_walk',
         # 'dataset/emdb/P3/27_indoor_walk_off_mvs',
         # 'dataset/emdb/P3/28_outdoor_walk_lunges',
-        'dataset/emdb/P3/29_outdoor_stairs_up',
+        # 'dataset/emdb/P3/29_outdoor_stairs_up',
         # 'dataset/emdb/P3/30_outdoor_stairs_down',
         # 'dataset/emdb/P4/35_indoor_walk',
         # 'dataset/emdb/P4/36_outdoor_long_walk',
