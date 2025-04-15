@@ -9,6 +9,11 @@ from .tools import checkerboard_geometry
 from lib.models.smpl import SMPL
 from lib.utils.rotation_conversions import quaternion_to_matrix, matrix_to_quaternion
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sns
+import numpy as np
+
 
 def traj_filter(pred_vert_w, pred_j3d_w, sigma=3):
     """ Smooth the root trajetory (xyz) """
@@ -198,4 +203,106 @@ def vis_traj(traj_1, traj_2, savefolder, grid=5):
         fig.savefig(f'{savefolder}/{seq}.png', dpi=200, bbox_inches='tight')
         plt.close(fig)
 
+def plot_trajectories_3d(traj1, traj2, save_path):
+    """
+    可视化两段三维相机轨迹
+    :param traj1: 轨迹1的xyz坐标数组 形状(N,3)
+    :param traj2: 轨迹2的xyz坐标数组 形状(M,3) 
+    :param save_path: 图片保存路径
+    """
+    # 设置Seaborn样式
+    sns.set_style("whitegrid")
+    
+    # 创建3D画布
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    # 绘制轨迹（调整颜色和线宽）
+    ax.plot(traj1[:,0], traj1[:,1], traj1[:,2], 
+            color=sns.color_palette("tab10")[0], 
+            linewidth=2, 
+            label='traj1')
+    ax.plot(traj2[:,0], traj2[:,1], traj2[:,2],
+            color=sns.color_palette("tab10")[1],
+            linewidth=2,
+            linestyle='--',
+            label='traj2')
+    
+    # 设置观察角度
+    ax.view_init(elev=20, azim=45)
+    
+    # 添加标签和标题
+    ax.set_xlabel('X-axis (m)', fontsize=12)
+    ax.set_ylabel('Y-axis (m)', fontsize=12)
+    ax.set_zlabel('Z-axis (m)', fontsize=12)
+    ax.set_title('Traj Comparison', fontsize=16, pad=20)
+    
+    # 添加图例和网格
+    ax.legend(loc='upper right', fontsize=10)
+    ax.grid(True)
+    
+    # 保持横纵比一致
+    max_range = np.array([traj1.max(), traj2.max()]).max()
+    min_val = np.array([traj1.min(), traj2.min()]).min()
+    ax.set_xlim(min_val, max_range)
+    ax.set_ylim(min_val, max_range)
+    ax.set_zlim(min_val, max_range)
+    
+    # 保存图像
+    plt.savefig(f'{save_path}/traj_figure_3d.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+def plot_trajectories_2d(traj1, traj2, save_path, plane='xy'):
+    """
+    二维轨迹可视化函数
+    :param traj1: 轨迹1的xyz坐标数组 形状(N,3)
+    :param traj2: 轨迹2的xyz坐标数组 形状(M,3)
+    :param save_path: 图片保存路径
+    :param plane: 投影平面选择，可选'xy'(默认)/'xz'/'yz'
+    """
+    # 设置Seaborn样式[1,6](@ref)
+    sns.set_style("whitegrid")
 
+    # 创建画布
+    plt.figure(figsize=(12, 8))
+    ax = plt.gca()
+
+    # 坐标轴选择
+    plane_dict = {
+        'xy': (0, 1, 'X-axis (m)', 'Y-axis (m)'),
+        'xz': (0, 2, 'X-axis (m)', 'Z-axis (m)'), 
+        'yz': (1, 2, 'Y-axis (m)', 'Z-axis (m)')
+    }
+    idx_x, idx_y, xlabel, ylabel = plane_dict[plane.lower()]
+
+    # 绘制轨迹[6](@ref)
+    ax.plot(traj1[:, idx_x], traj1[:, idx_y],
+            color=sns.color_palette("tab10")[0],
+            linewidth=2,
+            linestyle='-',
+            label='traj1')
+    
+    ax.plot(traj2[:, idx_x], traj2[:, idx_y],
+            color=sns.color_palette("tab10")[1],
+            linewidth=2,
+            linestyle='--',
+            label='traj2')
+
+    # 坐标轴设置[6](@ref)
+    ax.set_xlabel(xlabel, fontsize=12)
+    ax.set_ylabel(ylabel, fontsize=12)
+    ax.set_title('Traj Comparison({} plane)'.format(plane.upper()), fontsize=16)
+    
+    # 自动适配坐标范围
+    min_val = min(traj1.min(), traj2.min())
+    max_val = max(traj1.max(), traj2.max())
+    ax.set_xlim(min_val, max_val)
+    ax.set_ylim(min_val, max_val)
+    
+    # 添加辅助元素[3](@ref)
+    ax.legend(loc='best', fontsize=10)
+    ax.grid(True, linestyle='--', alpha=0.7)
+    
+    # 保存图像
+    plt.savefig(f'{save_path}/traj_figure_{plane}.png', dpi=300, bbox_inches='tight')
+    plt.close()

@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore")
 def main(args):
     # File and folders
     file = args.input
-    root = os.path.normpath(file)
+    root = os.path.dirname(file)
     seq = os.path.basename(root).split('.')[0]
 
     seq_folder = os.path.join(args.output_dir, seq)
@@ -74,7 +74,7 @@ def main(args):
     masks = np.array([masktool.decode(m) for m in masks_])
     masks = torch.from_numpy(masks)
 
-    traj, traj_full, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks, cam_int, seq)
+    traj, traj_full, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks, cam_int, seq) #2009, 7
 
     #==========================================================
     if os.path.exists(f'{hps_folder}/hps_track_0.npy'): # We have at least one
@@ -123,8 +123,11 @@ def main(args):
     wd_cam_R, wd_cam_T, spec_f = align_cam_to_world(imgfiles[0], cam_R, cam_T)
 
     camera = {'pred_cam_R': cam_R.numpy(), 'pred_cam_T': cam_T.numpy(), 
-            'world_cam_R': wd_cam_R.numpy(), 'world_cam_T': wd_cam_T.numpy(),
-            'img_focal': cam_int[0], 'img_center': cam_int[2:], 'spec_focal': spec_f}
+              'world_cam_R': wd_cam_R.numpy(), 'world_cam_T': wd_cam_T.numpy(),
+              'img_focal': cam_int[0], 'img_center': cam_int[2:], 
+              'spec_focal': spec_f,
+              'traj': traj,
+              'traj_full': traj_full}
 
     np.save(f'{seq_folder}/camera.npy', camera)
 

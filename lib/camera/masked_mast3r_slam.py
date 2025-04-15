@@ -103,6 +103,7 @@ def run_backend(cfg, model, states, keyframes, K):
             if success:
                 states.set_mode(Mode.TRACKING)
             states.dequeue_reloc()
+            print('relocal')
             continue
         idx = -1
         with states.lock:
@@ -161,7 +162,6 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
     save_frames = False
     torch.set_grad_enabled(False)
     device = "cuda:0"
-    #mp.set_start_method("spawn")
     datetime_now = str(datetime.datetime.now()).replace(" ", "_")
 
     use_calib = False if calib == None else True
@@ -188,7 +188,6 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
         config["use_calib"] = True
         has_calib = True
         use_calib = True
-        #dataset.camera_intrinsics = Intrinsics.from_calib(max(w,h), w, h, calib)
         dataset.camera_intrinsics = Intrinsics.from_calib(dataset.img_size, W, H, calib)
         K = torch.from_numpy(dataset.camera_intrinsics.K_frame).to(device, dtype=torch.float32
         )
@@ -297,6 +296,8 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
                         break
                 time.sleep(0.01)
         # log time
+        if i % 30 == 0:
+            torch.cuda.empty_cache()
         if i % 30 == 0:
             FPS = i / (time.time() - fps_timer)
             print(f"FPS: {FPS}")
