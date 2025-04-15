@@ -5,6 +5,7 @@ import tqdm
 import numpy as np
 import torch
 import cv2
+import os
 from PIL import Image
 from glob import glob
 from torchvision.transforms import Resize
@@ -333,3 +334,63 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
     backend.join()
     # PCs, Keyframe indexes, traj
     return traj, traj_full, pc_whole, pc, keyframes.dataset_idx
+
+def run_mast3r_single_frame(image, mask, calib=None, seq=None, image_idx='00000', save_dir='results_mono'):
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.set_grad_enabled(False)
+    device = "cuda:0"
+    datetime_now = str(datetime.datetime.now()).replace(" ", "_")
+
+    config_path = 'configs/base.yaml'
+    load_config(config_path)
+    print(config)
+
+    # NOTE hard code 
+    H, W = image.shape[:2]
+    h, w = 512, 384
+
+    # Setup shared states
+    manager = mp.Manager()
+    keyframes = SharedKeyframes(manager, h, w)
+    states = SharedStates(manager, h, w)
+
+    # Load model
+    model = load_mast3r('data/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth', device=device)
+    model.share_memory()
+
+    # Camera intrinsics
+    K = None
+    if calib is not None:
+        config["use_calib"] = True
+        intr = Intrinsics.from_calib(max(w,h), W, H, calib)
+        K = torch.from_numpy(intr.K_frame).to(device, dtype=torch.float32)
+        keyframes.set_intrinsics(K)
+    else:
+        config["use_calib"] = False
+
+    # Setup SLAM state
+    T_WC = lietorch.Sim3.Identity(1, device=device)
+    frame = create_frame(int(image_idx), image, T_WC, img_size=max(w,h), mask=mask, device=device)
+
+    # Mode: INIT
+    X_init, C_init = mast3r_inference_mono(model, frame)
+    frame.update_pointmap(X_init, C_init)
+    keyframes.append(frame)
+    states.queue_global_optimization(len(keyframes) - 1)
+    states.set_mode(Mode.TRACKING)
+    states.set_frame(frame)
+
+    # Save results
+    save_dir = os.path.join(save_dir, seq, image_idx)
+    # traj = eval.save_traj(save_dir, f"{seq_name}.txt", [0.0], keyframes)
+    # traj_full = eval.save_traj_full([0.0], keyframes, [frame])
+    pc_whole, pc = eval.save_reconstruction(
+        save_dir, 
+        f"{seq}_{image_idx}.ply", 
+        keyframes, 
+        c_conf_threshold=1.5
+    )
+    # eval.save_keyframes(save_dir / "keyframes" / seq, [0.0], keyframes)
+
+    print(f"Single frame MASt3R processing to {save_dir}.")
+    return pc_whole, pc

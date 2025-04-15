@@ -15,7 +15,7 @@ matching:
 
 tracking:
   min_match_frac: 0.05
-  max_iters: 500 # NOTE: 80GB VRAM 
+  max_iters: 100 # NOTE: 80GB VRAM 
   C_conf: 0.0
   Q_conf: 1.5
   rel_error: 1e-3

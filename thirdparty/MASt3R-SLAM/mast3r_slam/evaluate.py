@@ -2,6 +2,7 @@ import pathlib
 from typing import Optional
 import cv2
 import os
+import json
 import numpy as np
 import torch
 from mast3r_slam.dataloader import Intrinsics
@@ -83,6 +84,7 @@ def save_reconstruction(savedir, filename, keyframes, c_conf_threshold):
     keyframe_pcd_savedir.mkdir(exist_ok=True, parents=True)
     pointclouds = []
     colors = []
+    canon_to_w_scale = {}
     for i in range(len(keyframes)):
         keyframe = keyframes[i]
         if config["use_calib"]:
@@ -110,11 +112,18 @@ def save_reconstruction(savedir, filename, keyframes, c_conf_threshold):
         save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}.ply"), pointclouds[-1], colors[-1])
         # save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}.ply"), pW, color)
         save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}_canon.ply"), keyframe.X_canon.cpu().numpy().reshape(-1, 3), color)
+        C2W_scale = keyframe.T_WC.log()[:, 6].exp().item()
+        canon_to_w_scale[keyframe.frame_id] = C2W_scale
 
     pointclouds_ = np.concatenate(pointclouds, axis=0)
     colors_ = np.concatenate(colors, axis=0)
 
     save_ply(savedir / filename, pointclouds_, colors_)
+
+    stats_output_path = pathlib.Path(f"{savedir}/canon_to_w_scale.json")
+    with open(stats_output_path, 'w') as f:
+        json.dump(canon_to_w_scale, f, indent=4)
+    print(f"Saved stats to {stats_output_path}")
     
     return pointclouds_, pointclouds
 

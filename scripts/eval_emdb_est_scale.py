@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__) + '/..')
 
+import json
 import copy
 import torch
 import argparse
@@ -24,24 +25,7 @@ parser.add_argument('--scale', type=float, default=1, help='set the camera trans
 args = parser.parse_args()
 input_dir = args.input_dir
 
-# EMDB dataset and splits
-# roots = []
-# for p in range(10):
-#     folder = f'./dataset/emdb/P{p}'
-#     root = sorted(glob(f'{folder}/*'))
-#     roots.extend(root)
 
-# emdb = []
-# spl = args.split
-# for root in roots:
-#     annfile = f'{root}/{root.split("/")[-2]}_{root.split("/")[-1]}_data.pkl'
-#     ann = pkl.load(open(annfile, 'rb'))
-#     if ann[f'emdb{spl}']:
-#         emdb.append(root)
-
-# NOTE: emdb seq hard code
-#emdb = ['dataset/emdb/P0/09_outdoor_walk', 'dataset/emdb/P2/19_indoor_walk_off_mvs']
-#emdb = ['dataset/emdb/P0/09_outdoor_walk', 'dataset/emdb/P2/19_indoor_walk_off_mvs']
 # NOTE: emdb seq hard code - For SWH
 emdb = [
         'dataset/emdb/P0/09_outdoor_walk',
@@ -70,6 +54,8 @@ emdb = [
         'dataset/emdb/P9/79_outdoor_walk_rectangle',
         'dataset/emdb/P9/80_outdoor_walk_big_circle',
         ]
+with open("avg_ratios.json", "r") as f:
+    avg_ratios = json.load(f)
 
 
 # SMPL
@@ -120,6 +106,8 @@ for root in tqdm(emdb):
     
     # PRED
     seq = root.split('/')[-1]
+    # NOTE read from our estimation
+    scale = avg_ratios[seq]
     pred_cam = dict(np.load(f'{input_dir}/{seq}/camera.npy', allow_pickle=True).item())
     # NOTE: check person id
     pred_smpl = dict(np.load(f'{input_dir}/{seq}/hps/hps_track_0.npy', allow_pickle=True).item())
@@ -243,6 +231,7 @@ for root in emdb:
     seq = root.split('/')[-1]
     pred_cam = dict(np.load(f'{input_dir}/{seq}/camera.npy', allow_pickle=True).item())
 
+    scale = avg_ratios[seq]
     pred_camt = torch.tensor(pred_cam['pred_cam_T']) * scale
     pred_camr = torch.tensor(pred_cam['pred_cam_R'])
     pred_camq = matrix_to_quaternion(pred_camr)
@@ -278,8 +267,8 @@ df.to_excel(f"{args.input_dir}/evaluation.xlsx", index=False)
 excel_rows = []
 
 for i, seq in enumerate(human_traj.keys()):
-    print(seq)
-    row = {'seq': seq, 'scale': scale}
+    # print(seq)
+    row = {'seq': seq, 'scale': avg_ratios[seq]}
 
     # 加入原本accumulator中的指标
     for k in copied_accumulator:
@@ -305,6 +294,6 @@ mean_row.update(accumulator)
 # 添加到 DataFrame 末尾
 df = pd.concat([df, pd.DataFrame([mean_row])], ignore_index=True)
 
-excel_path = f'full_evaluation_results_s{scale}.xlsx'
+excel_path = f'full_evaluation_results_ours.xlsx'
 df.to_excel(excel_path, index=False)
 print(f"Full evaluation results saved to: {excel_path}")

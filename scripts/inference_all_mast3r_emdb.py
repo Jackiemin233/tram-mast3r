@@ -140,7 +140,7 @@ if __name__ == '__main__':
     parser.add_argument("--static_camera", action='store_true', help='whether the camera is static')
     parser.add_argument("--visualize_mask", action='store_true', default=True, help='save deva vos for visualization')
     parser.add_argument('--max_humans', type=int, default=20, help='maximum number of humans to reconstruct')
-    parser.add_argument('--output_dir', type=str, default='results_debug', help='the output save directory')
+    parser.add_argument('--output_dir', type=str, default='results', help='the output save directory')
     parser.add_argument('--bin_size', type=int, default=-1, help='rasterization bin_size; set to [64,128,...] to increase speed')
     parser.add_argument('--floor_scale', type=int, default=3, help='size of the floor')
     parser.add_argument('--multiperson', type=bool, default=False, help='Multi tracks, if you use emdb for evaluation, please set false')

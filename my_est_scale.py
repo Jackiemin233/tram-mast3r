@@ -140,7 +140,7 @@ def process_frame(seq_name, frame_id):
         o3d.io.write_point_cloud(f"{output_dir}/{frame_id}_merged.ply", pcd_merge)
 
     T, s = umeyama_with_scale(np.asarray(pcd_res_moge.points), np.asarray(pcd_res.points))
-    print(f"[{frame_id}] MOGE -> SLAM estimated scale: {s:.4f}")
+    # print(f"[{frame_id}] MOGE -> SLAM estimated scale: {s:.4f}")
     # scale_list.append(s)
 
     pcd_res_moge.transform(T)
@@ -187,8 +187,8 @@ def process_frame(seq_name, frame_id):
 
     bbox_smpl = compute_bbox_size(np.asarray(smpl_mesh.vertices))
     bbox_moge = compute_bbox_size(np.asarray(pcd_moge_human.points))
-    print(bbox_moge)
-    print(bbox_smpl)
+    # print(bbox_moge)
+    # print(bbox_smpl)
     ratios =  bbox_smpl / bbox_moge
     print(f"[{frame_id}] Bounding box Y-axis ratio (SMPL/SLAM): {ratios[1]:.4f}")
     # ratio_list.append(ratios[1])
@@ -202,6 +202,9 @@ def main():
         print(f"\n=======Processing sequence: {seq}=======")
         
         base_log_path = f"./logs_mast3r_slam/{seq}/keyframe_pcd/image"
+        can_2_w_scale_path = f"./logs_mast3r_slam/{seq}/canon_to_w_scale.json"
+        with open(can_2_w_scale_path, 'r') as f:
+            can_2_w_scale = json.load(f)
         pcd_files = sorted(glob.glob(os.path.join(base_log_path, "*_canon.ply")))
 
         scale_list = []
@@ -213,9 +216,12 @@ def main():
             try:
                 s, ratio = process_frame(seq, frame_id)
                 scale_list.append(s)
+                can2w = can_2_w_scale[str(int(frame_id))]
                 # NOTE: Emperical clip
                 # if 0.9 < ratio < 1.4:
                 if ratio > 0:
+                    ratio = ratio / can2w
+                    print(f"[{frame_id}] SMPL/SLAM): {ratio:.4f}")
                     ratio_list.append(ratio)
             except Exception as e:
                 print(f"[{frame_id}] Error processing frame: {e}")
