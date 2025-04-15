@@ -39,19 +39,15 @@ input_dir = args.input_dir
 #     if ann[f'emdb{spl}']:
 #         emdb.append(root)
 
-# NOTE: emdb seq hard code
-# emdb = ['dataset/emdb/P0/09_outdoor_walk', 'dataset/emdb/P2/19_indoor_walk_off_mvs']
-emdb = ['dataset/emdb/P2/20_outdoor_walk']
-
-
 # NOTE: emdb seq hard code - For SWH
-# emdb = ['dataset/emdb/P0/09_outdoor_walk',
+emdb = [
+#         'dataset/emdb/P0/09_outdoor_walk',
 #         'dataset/emdb/P2/19_indoor_walk_off_mvs',
 #         'dataset/emdb/P2/20_outdoor_walk',
 #         'dataset/emdb/P2/24_outdoor_long_walk',
 #         'dataset/emdb/P3/27_indoor_walk_off_mvs',
 #         'dataset/emdb/P3/28_outdoor_walk_lunges',
-#         'dataset/emdb/P3/29_outdoor_stairs_up',
+        'dataset/emdb/P3/29_outdoor_stairs_up',
 #         'dataset/emdb/P3/30_outdoor_stairs_down',
 #         'dataset/emdb/P4/35_indoor_walk',
 #         'dataset/emdb/P4/36_outdoor_long_walk',
@@ -70,7 +66,7 @@ emdb = ['dataset/emdb/P2/20_outdoor_walk']
 #         'dataset/emdb/P9/78_outdoor_stairs_up_down',
 #         'dataset/emdb/P9/79_outdoor_walk_rectangle',
 #         'dataset/emdb/P9/80_outdoor_walk_big_circle',
-#         ]
+        ]
 
 
 # SMPL
