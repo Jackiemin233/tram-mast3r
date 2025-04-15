@@ -136,6 +136,7 @@ def mast3r_inference_mono(model, frame):
     Xii, Xji = einops.rearrange(X, "b h w c -> b (h w) c")
     Cii, Cji = einops.rearrange(C, "b h w -> b (h w) 1")
     if frame.mask != None: #NOTE 4.13 : confidence Mask - NJ
+        Xii = Xii * einops.rearrange(1-frame.mask, "h w -> (h w) 1")
         Cii = Cii * einops.rearrange(1-frame.mask, "h w -> (h w) 1")
 
     return Xii, Cii
