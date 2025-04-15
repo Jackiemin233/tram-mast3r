@@ -385,7 +385,7 @@ def run_mast3r_single_frame(image, mask, calib=None, seq=None, image_idx='00000'
     save_dir = os.path.join(save_dir, seq, image_idx)
     # traj = eval.save_traj(save_dir, f"{seq_name}.txt", [0.0], keyframes)
     # traj_full = eval.save_traj_full([0.0], keyframes, [frame])
-    pc_whole, pc = eval.save_reconstruction(
+    eval.save_reconstruction_mono(
         save_dir, 
         f"{seq}_{image_idx}.ply", 
         keyframes, 
@@ -394,4 +394,4 @@ def run_mast3r_single_frame(image, mask, calib=None, seq=None, image_idx='00000'
     # eval.save_keyframes(save_dir / "keyframes" / seq, [0.0], keyframes)
 
     print(f"Single frame MASt3R processing to {save_dir}.")
-    return pc_whole, pc
+    return

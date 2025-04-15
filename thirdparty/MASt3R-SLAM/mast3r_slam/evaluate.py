@@ -127,6 +127,37 @@ def save_reconstruction(savedir, filename, keyframes, c_conf_threshold):
     
     return pointclouds_, pointclouds
 
+def save_reconstruction_mono(savedir, filename, keyframes, c_conf_threshold):
+    savedir = pathlib.Path(savedir)
+    savedir.mkdir(exist_ok=True, parents=True)
+    keyframe_pcd_savedir = pathlib.Path(f"{savedir}")
+    keyframe_pcd_savedir.mkdir(exist_ok=True, parents=True)
+    pointclouds = []
+    for i in range(len(keyframes)):
+        keyframe = keyframes[i]
+        if config["use_calib"]:
+            X_canon = constrain_points_to_ray(
+                keyframe.img_shape.flatten()[:2], keyframe.X_canon[None], keyframe.K
+            )
+            keyframe.X_canon = X_canon.squeeze(0)
+        # pW = keyframe.T_WC.act(keyframe.X_canon).cpu().numpy().reshape(-1, 3)
+        color = (keyframe.uimg.cpu().numpy() * 255).astype(np.uint8).reshape(-1, 3)
+        # valid = (
+        #     keyframe.get_average_conf().cpu().numpy().astype(np.float32).reshape(-1)
+        #     > c_conf_threshold
+        # )
+        # NOTE SWH: remove black person masks
+        # black_mask_flat = np.all(keyframe.uimg.cpu().numpy().reshape(-1, 3) == 0, axis=-1)
+        # valid = valid & (~black_mask_flat)
+        human_mask_flat = np.all(keyframe.mask.cpu().numpy().reshape(-1, 1) == 1, axis=-1)
+
+        save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}_cam.ply"), keyframe.X_canon.cpu().numpy().reshape(-1, 3), color)
+        print(keyframe.X_canon.cpu().numpy().reshape(-1, 3).shape)
+        save_ply(os.path.join(keyframe_pcd_savedir, f"{keyframe.frame_id:05d}_human.ply"), keyframe.X_canon.cpu().numpy().reshape(-1, 3)[human_mask_flat], color[human_mask_flat])
+        print(keyframe.X_canon.cpu().numpy().reshape(-1, 3)[human_mask_flat].shape)
+    
+    return
+
 
 def save_keyframes(savedir, timestamps, keyframes: SharedKeyframes):
     savedir = pathlib.Path(savedir)

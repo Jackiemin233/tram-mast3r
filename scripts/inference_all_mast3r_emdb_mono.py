@@ -53,13 +53,16 @@ def main(args):
 
     # 复制并 resize
     for id in sorted(ids):
-        jpg_name = id + ".jpg"
-        src_path = os.path.join(img_folder, jpg_name)
+        src_path = os.path.join(img_folder, id + ".jpg")
+        mask_path = os.path.join(sam_main_folder, id + ".png")
+        
+
 
         if os.path.exists(src_path):
             img = cv2.imread(src_path)
-            mask = np.ones_like(img[..., 0], dtype=np.uint8)
-            pc_whole, pc = run_mast3r_single_frame(img, mask=mask, calib=cam_int, seq=seq, image_idx=id, save_dir=args.output_dir)
+            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+            _, binary_mask = cv2.threshold(mask, 127, 1, cv2.THRESH_BINARY)
+            run_mast3r_single_frame(img, mask=binary_mask, calib=cam_int, seq=seq, image_idx=id, save_dir=args.output_dir)
 
     #==========================================================
 
