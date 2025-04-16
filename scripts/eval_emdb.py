@@ -21,23 +21,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--split', type=int, default=2)
 parser.add_argument('--input_dir', type=str, default='./results')
 parser.add_argument('--scale', type=float, default=1, help='set the camera translation scale')
+parser.add_argument('--vis_figure', type=str, default='./results', help='visualization path figure')
 args = parser.parse_args()
 input_dir = args.input_dir
 
-# EMDB dataset and splits
-# roots = []
-# for p in range(10):
-#     folder = f'./dataset/emdb/P{p}'
-#     root = sorted(glob(f'{folder}/*'))
-#     roots.extend(root)
-
-# emdb = []
-# spl = args.split
-# for root in roots:
-#     annfile = f'{root}/{root.split("/")[-2]}_{root.split("/")[-1]}_data.pkl'
-#     ann = pkl.load(open(annfile, 'rb'))
-#     if ann[f'emdb{spl}']:
-#         emdb.append(root)
 
 # NOTE: emdb seq hard code
 #emdb = ['dataset/emdb/P0/09_outdoor_walk', 'dataset/emdb/P2/19_indoor_walk_off_mvs']
@@ -248,7 +235,7 @@ for root in emdb:
     pred_camq = matrix_to_quaternion(pred_camr)
     pred_traj = torch.concat([pred_camt, pred_camq], dim=-1).numpy()
 
-    stats_slam, _, _ = eval_slam(pred_traj.copy(), cam_t, cam_q, correct_scale=True)
+    stats_slam, traj_ref_align, traj_est_align = eval_slam(pred_traj.copy(), cam_t, cam_q, correct_scale=True)
     stats_metric, traj_ref, traj_est = eval_slam(pred_traj.copy(), cam_t, cam_q, correct_scale=False)
   
     # Save results
@@ -258,6 +245,11 @@ for root in emdb:
           'traj_est_q': traj_est.orientations_quat_wxyz,
           'stats_slam': stats_slam,
           'stats_metric': stats_metric}
+    
+    # Visualize the camera motions
+    if args.vis_figure != None:
+        plot_trajectories_3d(traj_ref_align.positions_xyz, traj_est_align.positions_xyz, os.path.join(args.vis_figure, seq))
+        plot_trajectories_2d(traj_ref_align.positions_xyz, traj_est_align.positions_xyz, os.path.join(args.vis_figure, seq))
     
     results[seq] = re
     copied_accumulator['ate'].append(re['stats_slam']['mean'])

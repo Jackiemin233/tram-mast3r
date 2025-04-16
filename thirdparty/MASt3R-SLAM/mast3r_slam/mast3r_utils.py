@@ -242,17 +242,17 @@ def mast3r_match_asymmetric(model, frame_i, frame_j, idx_i2j_init=None):
         Qji = (1 - frame_j.mask).unsqueeze(0) * Qji
     
     '''
-    if frame_i.mask != None:
-        Xii = (1 - frame_i.mask).unsqueeze(0).unsqueeze(-1) * Xii
-        Cii = (1 - frame_i.mask).unsqueeze(0) * Cii
-        Dii = (1 - frame_i.mask).unsqueeze(0).unsqueeze(-1) * Dii
-        Qii = (1 - frame_i.mask).unsqueeze(0) * Qii
+    # if frame_i.mask != None:
+        # Xii = (1 - frame_i.mask).unsqueeze(0).unsqueeze(-1) * Xii
+        # Cii = (1 - frame_i.mask).unsqueeze(0) * Cii
+        # Dii = (1 - frame_i.mask).unsqueeze(0).unsqueeze(-1) * Dii
+        # Qii = (1 - frame_i.mask).unsqueeze(0) * Qii
         
-    if frame_j.mask != None:
+    # if frame_j.mask != None:
         #Xji = (1 - frame_j.mask).unsqueeze(0).unsqueeze(-1) * Xji
-        Cji = (1 - frame_j.mask).unsqueeze(0) * Cji
+        # Cji = (1 - frame_j.mask).unsqueeze(0) * Cji
         #Dji = (1 - frame_j.mask).unsqueeze(0).unsqueeze(-1) * Dji
-        Qji = (1 - frame_j.mask).unsqueeze(0) * Qji
+        # Qji = (1 - frame_j.mask).unsqueeze(0) * Qji
     
     idx_i2j, valid_match_j = matching.match(
         Xii, Xji, Dii, Dji, idx_1_to_2_init=idx_i2j_init
@@ -263,6 +263,12 @@ def mast3r_match_asymmetric(model, frame_i, frame_j, idx_i2j_init=None):
     Cii, Cji = einops.rearrange(C, "b h w -> b (h w) 1")
     Dii, Dji = einops.rearrange(D, "b h w c -> b (h w) c")
     Qii, Qji = einops.rearrange(Q, "b h w -> b (h w) 1")
+
+    if frame_i.mask != None: #NOTE 4.13 : confidence Mask - NJ
+        Cii = Cii * einops.rearrange(1-frame_i.mask, "h w -> (h w) 1")
+        
+    # if frame_j.mask != None: #NOTE 4.14 掉点？
+    #     Cji = Cji * einops.rearrange(1-frame_j.mask, "h w -> (h w) 1") 
     
     return idx_i2j, valid_match_j, Xii, Cii, Qii, Xji, Cji, Qji
 

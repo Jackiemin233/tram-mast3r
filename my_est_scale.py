@@ -8,31 +8,31 @@ import json
 
 
 emdb2_names = [
-    # "09_outdoor_walk",
-    # "19_indoor_walk_off_mvs",
-    # "20_outdoor_walk",
-    # "24_outdoor_long_walk",
-    # "27_indoor_walk_off_mvs",
-    # "28_outdoor_walk_lunges",
+    "09_outdoor_walk",
+    "19_indoor_walk_off_mvs",
+    "20_outdoor_walk",
+    "24_outdoor_long_walk",
+    "27_indoor_walk_off_mvs",
+    "28_outdoor_walk_lunges",
     "29_outdoor_stairs_up",
-    # "30_outdoor_stairs_down",
-    # "35_indoor_walk",
-    # "36_outdoor_long_walk",
-    # "37_outdoor_run_circle",
-    # "40_indoor_walk_big_circle",
-    # "48_outdoor_walk_downhill",
-    # "49_outdoor_big_stairs_down",
-    # "55_outdoor_walk",
-    # "56_outdoor_stairs_up_down",
-    # "57_outdoor_rock_chair",
-    # "58_outdoor_parcours",
-    # "61_outdoor_sit_lie_walk",
-    # "65_outdoor_walk_straight",
-    # "64_outdoor_skateboard",
-    # "77_outdoor_stairs_up",
-    # "78_outdoor_stairs_up_down",
-    # "79_outdoor_walk_rectangle",
-    # "80_outdoor_walk_big_circle",
+    "30_outdoor_stairs_down",
+    "35_indoor_walk",
+    "36_outdoor_long_walk",
+    "37_outdoor_run_circle",
+    "40_indoor_walk_big_circle",
+    "48_outdoor_walk_downhill",
+    "49_outdoor_big_stairs_down",
+    "55_outdoor_walk",
+    "56_outdoor_stairs_up_down",
+    "57_outdoor_rock_chair",
+    "58_outdoor_parcours",
+    "61_outdoor_sit_lie_walk",
+    "65_outdoor_walk_straight",
+    "64_outdoor_skateboard",
+    "77_outdoor_stairs_up",
+    "78_outdoor_stairs_up_down",
+    "79_outdoor_walk_rectangle",
+    "80_outdoor_walk_big_circle",
 ]
 
 def umeyama_with_scale(src, tgt):
@@ -73,11 +73,11 @@ def compute_bbox_size(points):
     max_pt = points.max(axis=0)
     return max_pt - min_pt
 
-def process_frame(seq_name, frame_id):
+def process_frame(args, seq_name, frame_id):
     base_log_path = f"./logs_mast3r_slam/{seq_name}/keyframe_pcd/image"
     pcd_path = os.path.join(base_log_path, f"{frame_id}_canon.ply")
     mask_path = f"./logs_mast3r_slam/{seq_name}/keyframe_pcd/image/{frame_id}_mask.npy"
-    smpl_path = f"./results/{seq_name}/smpls/0/{frame_id}_cam.obj"
+    smpl_path = os.path.join(args.output_dir, f"{seq_name}/smpls/0/{frame_id}_cam.obj")
     moge_path = f"/home/shenwenhao/MoGe/output/{seq_name}/{frame_id}/pointmap.ply"
     moge_human_path = f"/home/shenwenhao/MoGe/output/{seq_name}/{frame_id}/human_pointmap.ply"
     output_dir = f"./vis/{seq_name}"
@@ -195,7 +195,7 @@ def process_frame(seq_name, frame_id):
     return s, ratios[1]
 
 
-def main():
+def main(args):
     avg_ratio_dict = {}
     
     for seq in emdb2_names:
@@ -214,7 +214,7 @@ def main():
             filename = os.path.basename(pcd_file)
             frame_id = filename.split("_")[0]
             try:
-                s, ratio = process_frame(seq, frame_id)
+                s, ratio = process_frame(args, seq, frame_id)
                 scale_list.append(s)
                 can2w = can_2_w_scale[str(int(frame_id))]
                 # NOTE: Emperical clip
@@ -255,4 +255,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("--input", type=str, default='./dataset/P9/79_outdoor_walk_rectangle', help='path to your EMDB Test Samples')
+    # parser.add_argument("--mast3r_output", type=str, default='./results', help='path to your MASt3r results')
+    parser.add_argument('--output_dir', type=str, default='./results', help='the output save directory')
+    args = parser.parse_args()
+    main(args)

@@ -294,6 +294,6 @@ mean_row.update(accumulator)
 # 添加到 DataFrame 末尾
 df = pd.concat([df, pd.DataFrame([mean_row])], ignore_index=True)
 
-excel_path = f'full_evaluation_results_ours.xlsx'
+excel_path = f'full_evaluation_results_fixed_scale.xlsx'
 df.to_excel(excel_path, index=False)
 print(f"Full evaluation results saved to: {excel_path}")
