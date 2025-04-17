@@ -8,31 +8,31 @@ import json
 
 
 emdb2_names = [
-    "09_outdoor_walk",
-    "19_indoor_walk_off_mvs",
-    "20_outdoor_walk",
-    "24_outdoor_long_walk",
-    "27_indoor_walk_off_mvs",
-    "28_outdoor_walk_lunges",
-    "29_outdoor_stairs_up",
+    # "09_outdoor_walk",
+    # "19_indoor_walk_off_mvs",
+    # "20_outdoor_walk",
+    # "24_outdoor_long_walk",
+    # "27_indoor_walk_off_mvs",
+    # "28_outdoor_walk_lunges",
+    # "29_outdoor_stairs_up",
     "30_outdoor_stairs_down",
-    "35_indoor_walk",
-    "36_outdoor_long_walk",
-    "37_outdoor_run_circle",
-    "40_indoor_walk_big_circle",
-    "48_outdoor_walk_downhill",
-    "49_outdoor_big_stairs_down",
-    "55_outdoor_walk",
-    "56_outdoor_stairs_up_down",
-    "57_outdoor_rock_chair",
-    "58_outdoor_parcours",
-    "61_outdoor_sit_lie_walk",
-    "65_outdoor_walk_straight",
-    "64_outdoor_skateboard",
-    "77_outdoor_stairs_up",
-    "78_outdoor_stairs_up_down",
-    "79_outdoor_walk_rectangle",
-    "80_outdoor_walk_big_circle",
+    # "35_indoor_walk",
+    # "36_outdoor_long_walk",
+    # "37_outdoor_run_circle",
+    # "40_indoor_walk_big_circle",
+    # "48_outdoor_walk_downhill",
+    # "49_outdoor_big_stairs_down",
+    # "55_outdoor_walk",
+    # "56_outdoor_stairs_up_down",
+    # "57_outdoor_rock_chair",
+    # "58_outdoor_parcours",
+    # "61_outdoor_sit_lie_walk",
+    # "64_outdoor_skateboard",
+    # "65_outdoor_walk_straight",
+    # "77_outdoor_stairs_up",
+    # "78_outdoor_stairs_up_down",
+    # "79_outdoor_walk_rectangle",
+    # "80_outdoor_walk_big_circle",
 ]
 
 def umeyama_with_scale(src, tgt):
@@ -221,7 +221,7 @@ def main(args):
                 # if 0.9 < ratio < 1.4:
                 if ratio > 0:
                     ratio = ratio / can2w
-                    print(f"[{frame_id}] SMPL/SLAM): {ratio:.4f}")
+                    print(f"[{frame_id}] SMPL/SLAM: {ratio:.4f}")
                     ratio_list.append(ratio)
             except Exception as e:
                 print(f"[{frame_id}] Error processing frame: {e}")

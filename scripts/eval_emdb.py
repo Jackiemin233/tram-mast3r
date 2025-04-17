@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.dirname(__file__) + '/..')
 import copy
 import torch
 import argparse
+import json
 import numpy as np
 import pandas as pd
 import pickle as pkl
@@ -20,7 +21,6 @@ from lib.camera.slam_utils import eval_slam
 parser = argparse.ArgumentParser()
 parser.add_argument('--split', type=int, default=2)
 parser.add_argument('--input_dir', type=str, default='./results')
-parser.add_argument('--scale', type=float, default=1, help='set the camera translation scale')
 parser.add_argument('--vis_figure', type=str, default='./results', help='visualization path figure')
 args = parser.parse_args()
 input_dir = args.input_dir
@@ -33,25 +33,25 @@ input_dir = args.input_dir
 emdb = [
         'dataset/emdb/P0/09_outdoor_walk',
         'dataset/emdb/P2/19_indoor_walk_off_mvs',
-        'dataset/emdb/P2/20_outdoor_walk',
-        'dataset/emdb/P2/24_outdoor_long_walk',
+        # 'dataset/emdb/P2/20_outdoor_walk',
+        # 'dataset/emdb/P2/24_outdoor_long_walk',
         'dataset/emdb/P3/27_indoor_walk_off_mvs',
         'dataset/emdb/P3/28_outdoor_walk_lunges',
         'dataset/emdb/P3/29_outdoor_stairs_up',
         'dataset/emdb/P3/30_outdoor_stairs_down',
         'dataset/emdb/P4/35_indoor_walk',
-        'dataset/emdb/P4/36_outdoor_long_walk',
+        # 'dataset/emdb/P4/36_outdoor_long_walk',
         'dataset/emdb/P4/37_outdoor_run_circle',
-        'dataset/emdb/P5/40_indoor_walk_big_circle',
+        # 'dataset/emdb/P5/40_indoor_walk_big_circle',
         'dataset/emdb/P6/48_outdoor_walk_downhill',
         'dataset/emdb/P6/49_outdoor_big_stairs_down',
         'dataset/emdb/P7/55_outdoor_walk',
         'dataset/emdb/P7/56_outdoor_stairs_up_down',
         'dataset/emdb/P7/57_outdoor_rock_chair',
         'dataset/emdb/P7/58_outdoor_parcours',
-        'dataset/emdb/P7/61_outdoor_sit_lie_walk',
+        # 'dataset/emdb/P7/61_outdoor_sit_lie_walk',
         'dataset/emdb/P8/64_outdoor_skateboard',
-        'dataset/emdb/P8/65_outdoor_walk_straight',
+        # 'dataset/emdb/P8/65_outdoor_walk_straight',
         'dataset/emdb/P9/77_outdoor_stairs_up',
         'dataset/emdb/P9/78_outdoor_stairs_up_down',
         'dataset/emdb/P9/79_outdoor_walk_rectangle',
@@ -71,7 +71,8 @@ human_traj = {}
 total_invalid = 0
 
 # NOTE SWH: manual set scale for now
-scale = args.scale
+with open('avg_ratios_new.json', 'r') as f:
+    scale_dict = json.load(f)
 
 for root in tqdm(emdb):
     # GT
@@ -110,6 +111,7 @@ for root in tqdm(emdb):
     pred_cam = dict(np.load(f'{input_dir}/{seq}/camera.npy', allow_pickle=True).item())
     # NOTE: check person id
     pred_smpl = dict(np.load(f'{input_dir}/{seq}/hps/hps_track_0.npy', allow_pickle=True).item())
+    scale = scale_dict[seq]
 
     pred_rotmat = torch.tensor(pred_smpl['pred_rotmat'])
     pred_shape = torch.tensor(pred_smpl['pred_shape'])
@@ -229,6 +231,7 @@ for root in emdb:
     # PRED
     seq = root.split('/')[-1]
     pred_cam = dict(np.load(f'{input_dir}/{seq}/camera.npy', allow_pickle=True).item())
+    scale = scale_dict[seq]
 
     pred_camt = torch.tensor(pred_cam['pred_cam_T']) * scale
     pred_camr = torch.tensor(pred_cam['pred_cam_R'])
@@ -271,6 +274,7 @@ excel_rows = []
 
 for i, seq in enumerate(human_traj.keys()):
     print(seq)
+    scale = scale_dict[seq]
     row = {'seq': seq, 'scale': scale}
 
     # 加入原本accumulator中的指标
@@ -297,6 +301,6 @@ mean_row.update(accumulator)
 # 添加到 DataFrame 末尾
 df = pd.concat([df, pd.DataFrame([mean_row])], ignore_index=True)
 
-excel_path = f'full_evaluation_results_s{scale}.xlsx'
+excel_path = f'full_evaluation_results_ours.xlsx'
 df.to_excel(excel_path, index=False)
 print(f"Full evaluation results saved to: {excel_path}")

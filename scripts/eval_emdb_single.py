@@ -21,6 +21,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--split', type=int, default=2)
 parser.add_argument('--input_dir', type=str, default='./results')
 parser.add_argument('--scale', type=float, default=1, help='set the camera translation scale')
+parser.add_argument('--vis_figure', type=str, default='./results', help='visualization path figure')
 args = parser.parse_args()
 input_dir = args.input_dir
 
@@ -42,13 +43,13 @@ input_dir = args.input_dir
 # NOTE: emdb seq hard code - For SWH
 emdb = [
         # 'dataset/emdb/P0/09_outdoor_walk',
-        'dataset/emdb/P2/19_indoor_walk_off_mvs',
+        # 'dataset/emdb/P2/19_indoor_walk_off_mvs',
         # 'dataset/emdb/P2/20_outdoor_walk',
         # 'dataset/emdb/P2/24_outdoor_long_walk',
         # 'dataset/emdb/P3/27_indoor_walk_off_mvs',
         # 'dataset/emdb/P3/28_outdoor_walk_lunges',
         # 'dataset/emdb/P3/29_outdoor_stairs_up',
-        # 'dataset/emdb/P3/30_outdoor_stairs_down',
+        'dataset/emdb/P3/30_outdoor_stairs_down',
         # 'dataset/emdb/P4/35_indoor_walk',
         # 'dataset/emdb/P4/36_outdoor_long_walk',
         # 'dataset/emdb/P4/37_outdoor_run_circle',
@@ -245,7 +246,7 @@ for root in emdb:
     pred_camq = matrix_to_quaternion(pred_camr)
     pred_traj = torch.concat([pred_camt, pred_camq], dim=-1).numpy()
 
-    stats_slam, _, _ = eval_slam(pred_traj.copy(), cam_t, cam_q, correct_scale=True)
+    stats_slam, traj_ref_align, traj_est_align = eval_slam(pred_traj.copy(), cam_t, cam_q, correct_scale=True)
     stats_metric, traj_ref, traj_est = eval_slam(pred_traj.copy(), cam_t, cam_q, correct_scale=False)
   
     # Save results
@@ -255,7 +256,15 @@ for root in emdb:
           'traj_est_q': traj_est.orientations_quat_wxyz,
           'stats_slam': stats_slam,
           'stats_metric': stats_metric}
-    
+
+    # Visualize the camera motions
+    if args.vis_figure != None:
+        plot_trajectories_3d(traj_ref_align.positions_xyz, traj_est_align.positions_xyz, os.path.join(args.vis_figure, seq), fig_name='traj_figure_3d_align')
+        plot_trajectories_2d(traj_ref_align.positions_xyz, traj_est_align.positions_xyz, os.path.join(args.vis_figure, seq), fig_name='traj_figure_2d_align')
+
+        plot_trajectories_3d(traj_ref.positions_xyz, traj_est.positions_xyz, os.path.join(args.vis_figure, seq), fig_name='traj_figure_3d')
+        plot_trajectories_2d(traj_ref.positions_xyz, traj_est.positions_xyz, os.path.join(args.vis_figure, seq), fig_name='traj_figure_2d')
+
     results[seq] = re
     copied_accumulator['ate'].append(re['stats_slam']['mean'])
     copied_accumulator['ate_s'].append(re['stats_metric']['mean'])
