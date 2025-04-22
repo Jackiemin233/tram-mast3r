@@ -110,7 +110,9 @@ class Droid:
             self.backend(12)
 
         camera_trajectory = self.traj_filler(stream)
-        return camera_trajectory.inv().data.cpu().numpy()
+        
+        c2w_scale = (camera_trajectory.inv().data.log()[:, 6].exp())
+        return camera_trajectory.inv().data.cpu().numpy(), c2w_scale
     
     def compute_error(self):
         """ compute slam reprojection error """

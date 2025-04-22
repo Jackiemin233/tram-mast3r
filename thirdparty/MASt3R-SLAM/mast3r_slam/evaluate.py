@@ -56,12 +56,6 @@ def save_traj_full(
     Frames: list,
     intrinsics: Optional[Intrinsics] = None,
 ):
-    # log
-    # logdir = pathlib.Path(logdir)
-    # logdir.mkdir(exist_ok=True, parents=True)
-    # logfile = logdir / logfile
-    # with open(logfile, "w") as f:
-        # for keyframe_id in frames.keyframe_ids:
     traj = []
     for i in range(len(Frames)):
         frame = Frames[i]

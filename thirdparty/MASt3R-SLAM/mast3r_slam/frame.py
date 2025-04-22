@@ -289,7 +289,8 @@ class SharedKeyframes:
             self.img[idx] = value.img
             self.uimg[idx] = value.uimg
             # NOTE: 4.14 Add mask 
-            self.mask[idx] = value.mask
+            if value.mask != None:
+                self.mask[idx] = value.mask
             
             self.img_shape[idx] = value.img_shape
             self.img_true_shape[idx] = value.img_true_shape

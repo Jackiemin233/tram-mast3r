@@ -203,7 +203,7 @@ def vis_traj(traj_1, traj_2, savefolder, grid=5):
         fig.savefig(f'{savefolder}/{seq}.png', dpi=200, bbox_inches='tight')
         plt.close(fig)
 
-def plot_trajectories_3d(traj1, traj2, save_path):
+def plot_trajectories_3d(traj1, traj2, save_path, t1_name=None, t2_name=None, fig_name=None):
     """
     可视化两段三维相机轨迹
     :param traj1: 轨迹1的xyz坐标数组 形状(N,3)
@@ -221,12 +221,12 @@ def plot_trajectories_3d(traj1, traj2, save_path):
     ax.plot(traj1[:,0], traj1[:,1], traj1[:,2], 
             color=sns.color_palette("tab10")[0], 
             linewidth=2, 
-            label='traj1')
+            label=t1_name if t1_name != None else 'GT')
     ax.plot(traj2[:,0], traj2[:,1], traj2[:,2],
             color=sns.color_palette("tab10")[1],
             linewidth=2,
             linestyle='--',
-            label='traj2')
+            label=t2_name if t2_name != None else 'Pred')
     
     # 设置观察角度
     ax.view_init(elev=20, azim=45)
@@ -241,18 +241,37 @@ def plot_trajectories_3d(traj1, traj2, save_path):
     ax.legend(loc='upper right', fontsize=10)
     ax.grid(True)
     
-    # 保持横纵比一致
-    max_range = np.array([traj1.max(), traj2.max()]).max()
-    min_val = np.array([traj1.min(), traj2.min()]).min()
-    ax.set_xlim(min_val, max_range)
-    ax.set_ylim(min_val, max_range)
-    ax.set_zlim(min_val, max_range)
+    # # 保持横纵比一致
+    # max_range = np.array([traj1.max(), traj2.max()]).max()
+    # min_val = np.array([traj1.min(), traj2.min()]).min()
+    # ax.set_xlim(min_val, max_range)
+    # ax.set_ylim(min_val, max_range)
+    # ax.set_zlim(min_val, max_range)
+    # 组合两个轨迹用于统一范围计算
+    all_points = np.vstack([traj1, traj2])
+    x_range = all_points[:, 0]
+    y_range = all_points[:, 1]
+    z_range = all_points[:, 2]
+
+    # 找到中心点和最大跨度
+    x_center = (x_range.max() + x_range.min()) / 2
+    y_center = (y_range.max() + y_range.min()) / 2
+    z_center = (z_range.max() + z_range.min()) / 2
+    max_range = max(x_range.ptp(), y_range.ptp(), z_range.ptp()) / 2  # ptp: max - min
+
+    # 设置三轴坐标范围，保持等比例缩放
+    ax.set_xlim(x_center - max_range, x_center + max_range)
+    ax.set_ylim(y_center - max_range, y_center + max_range)
+    ax.set_zlim(z_center - max_range, z_center + max_range)
     
     # 保存图像
-    plt.savefig(f'{save_path}/traj_figure_3d.png', dpi=300, bbox_inches='tight')
+    if fig_name is None:
+        fig_name = 'traj_figure_3d'
+    plt.savefig(f'{save_path}/{fig_name}.png', dpi=300, bbox_inches='tight')
     plt.close()
     
-def plot_trajectories_2d(traj1, traj2, save_path, plane='xy'):
+
+def plot_trajectories_2d(traj1, traj2, save_path, plane='xy', t1_name=None, t2_name=None, fig_name=None):
     """
     二维轨迹可视化函数
     :param traj1: 轨迹1的xyz坐标数组 形状(N,3)
@@ -280,29 +299,43 @@ def plot_trajectories_2d(traj1, traj2, save_path, plane='xy'):
             color=sns.color_palette("tab10")[0],
             linewidth=2,
             linestyle='-',
-            label='traj1')
+            label=t1_name if t1_name != None else 'GT')
     
     ax.plot(traj2[:, idx_x], traj2[:, idx_y],
             color=sns.color_palette("tab10")[1],
             linewidth=2,
             linestyle='--',
-            label='traj2')
+            label=t2_name if t2_name != None else 'Pred')
 
     # 坐标轴设置[6](@ref)
     ax.set_xlabel(xlabel, fontsize=12)
     ax.set_ylabel(ylabel, fontsize=12)
     ax.set_title('Traj Comparison({} plane)'.format(plane.upper()), fontsize=16)
     
-    # 自动适配坐标范围
-    min_val = min(traj1.min(), traj2.min())
-    max_val = max(traj1.max(), traj2.max())
-    ax.set_xlim(min_val, max_val)
-    ax.set_ylim(min_val, max_val)
+    # # 自动适配坐标范围
+    # min_val = min(traj1.min(), traj2.min())
+    # max_val = max(traj1.max(), traj2.max())
+    # ax.set_xlim(min_val, max_val)
+    # ax.set_ylim(min_val, max_val)
+    # 自动适配坐标范围（按选中坐标轴）
+    all_points = np.vstack([traj1, traj2])
+    x_vals = all_points[:, idx_x]
+    y_vals = all_points[:, idx_y]
+
+    x_center = (x_vals.max() + x_vals.min()) / 2
+    y_center = (y_vals.max() + y_vals.min()) / 2
+    max_range = max(x_vals.ptp(), y_vals.ptp()) / 2  # ptp: peak-to-peak, max - min
+
+    ax.set_xlim(x_center - max_range, x_center + max_range)
+    ax.set_ylim(y_center - max_range, y_center + max_range)
+
     
     # 添加辅助元素[3](@ref)
     ax.legend(loc='best', fontsize=10)
     ax.grid(True, linestyle='--', alpha=0.7)
     
     # 保存图像
-    plt.savefig(f'{save_path}/traj_figure_{plane}.png', dpi=300, bbox_inches='tight')
+    if fig_name is None:
+        fig_name = 'traj_figure_2d'
+    plt.savefig(f'{save_path}/{fig_name}_{plane}.png', dpi=300, bbox_inches='tight')
     plt.close()

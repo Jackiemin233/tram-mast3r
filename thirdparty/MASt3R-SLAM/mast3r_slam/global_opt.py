@@ -7,6 +7,7 @@ from mast3r_slam.geometry import (
 )
 from mast3r_slam.mast3r_utils import mast3r_match_symmetric
 import mast3r_slam_backends
+import einops
 
 
 class FactorGraph:
@@ -36,7 +37,10 @@ class FactorGraph:
         pos_j = torch.cat([kf_j.pos for kf_j in kf_jj])
         shape_i = [kf_i.img_true_shape for kf_i in kf_ii]
         shape_j = [kf_j.img_true_shape for kf_j in kf_jj]
-
+        #NOTE: 4.17 modify
+        mask_i = torch.cat([(1-kf_i.mask).unsqueeze(0) for kf_i in kf_ii])
+        mask_j = torch.cat([(1-kf_j.mask).unsqueeze(0) for kf_j in kf_jj])
+        
         (
             idx_i2j,
             idx_j2i,
@@ -47,7 +51,7 @@ class FactorGraph:
             Qji,
             Qij,
         ) = mast3r_match_symmetric(
-            self.model, feat_i, pos_i, feat_j, pos_j, shape_i, shape_j
+            self.model, feat_i, pos_i, feat_j, pos_j, shape_i, shape_j, mask_i= mask_i, mask_j=mask_j
         )
 
         batch_inds = torch.arange(idx_i2j.shape[0], device=idx_i2j.device)[
@@ -113,9 +117,8 @@ class FactorGraph:
         kfs = [self.frames[idx] for idx in unique_kf_idx]
         Xs = torch.stack([kf.X_canon for kf in kfs])
         T_WCs = lietorch.Sim3(torch.stack([kf.T_WC.data for kf in kfs]))
-
         Cs = torch.stack([kf.get_average_conf() for kf in kfs])
-
+        
         return Xs, T_WCs, Cs
 
     def solve_GN_rays(self):
@@ -165,7 +168,7 @@ class FactorGraph:
         if n_unique_kf <= pin:
             return
 
-        Xs, T_WCs, Cs = self.get_poses_points(unique_kf_idx)
+        Xs, T_WCs, Cs= self.get_poses_points(unique_kf_idx)
 
         # Constrain points to ray
         img_size = self.frames[0].img.shape[-2:]

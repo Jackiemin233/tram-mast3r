@@ -15,6 +15,7 @@ from .slam_utils import get_dimention, est_calib, image_stream, preprocess_masks
 from .est_scale import est_scale_hybrid
 from ..utils.rotation_conversions import quaternion_to_matrix
 import trimesh
+
 from ..vis.tools import vis_img
 
 import torch.multiprocessing as mp
@@ -24,6 +25,9 @@ import pathlib
 import sys
 import time
 import lietorch
+
+from mast3r_slam.lietorch_utils import as_SE3, as_Sim3
+
 from mast3r_slam.global_opt import FactorGraph
 
 from mast3r_slam.config import load_config, config, set_global_config
@@ -156,7 +160,7 @@ def run_backend(cfg, model, states, keyframes, K):
             if len(states.global_optimizer_tasks) > 0:
                 idx = states.global_optimizer_tasks.pop(0)
 
-def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
+def run_mast3r_metric_slam_droid(image_folder, masks, calib = None, seq=None, traj_droid=None, kf_idx_droid = None, c2w_scale = None):
     torch.backends.cuda.matmul.allow_tf32 = True
     no_viz = True
     save_frames = False
@@ -241,14 +245,13 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
         if save_frames:
             frames.append(img)
 
-        # get frames last camera pose
-        T_WC = (
-            lietorch.Sim3.Identity(1, device=device)
-            if i == 0
-            else states.get_frame().T_WC
-        )
+        s = lietorch.Sim3.Identity(1, device=device) if i == 0 else states.get_frame().T_WC # Scale of the last frame
+        #T_WC = as_Sim3(traj_droid[0], s) if i == 0 else as_Sim3(traj_droid[i-1], s)
+        #T_WC = as_Sim3(traj_droid[0], s) if i == 0 else as_Sim3(torch.cat([torch.from_numpy(traj_droid[i-1][:3]).to(states.get_frame().T_WC.data.device), states.get_frame().T_WC.data[0, 3:-1]]), s)
+        T_WC = as_Sim3(traj_droid[0], s) if i == 0 else as_Sim3(torch.cat([states.get_frame().T_WC.data[0, 0:3], torch.from_numpy(traj_droid[i-1][3:]).to(states.get_frame().T_WC.data.device)]),s)
+
         frame = create_frame(i, img, T_WC, img_size=dataset.img_size, mask=mask, device=device)
-        # Frames.append(frame)
+    
         if mode == Mode.INIT:
             # Initialize via mono inference, and encoded features need for database
             X_init, C_init = mast3r_inference_mono(model, frame)
@@ -259,7 +262,7 @@ def run_mast3r_metric_slam(image_folder, masks, calib = None, seq=None):
             states.set_frame(frame)
             Frames.append(frame)
             i += 1
-            continue
+            continue 
 
         if mode == Mode.TRACKING:
             add_new_kf, match_info, try_reloc = tracker.track(frame)

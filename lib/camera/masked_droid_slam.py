@@ -18,6 +18,7 @@ from ..utils.rotation_conversions import quaternion_to_matrix
 import trimesh
 
 from .est_scale import compute_scales
+from .est_gravity import align_cam_to_world
 
 # torch.multiprocessing.set_start_method('spawn')
 
@@ -62,6 +63,31 @@ def run_smpl_metric_slam(img_folder, masks, calib, is_static, smpls=None):
 
     return None, None
 
+def run_droid_slam_nometric(img_folder, masks=None, calib=None, is_static=False):
+    '''
+    Input:
+        img_folder: directory that contain image files 
+        masks: list or array of 2D masks for human. 
+               If None, no masking applied during slam.
+        calib: camera intrinsics [fx, fy, cx, cy]. 
+               If None, will be naively estimated.
+    '''
+
+    imgfiles = sorted(glob(f'{img_folder}/*.jpg'))
+
+    ##### If static camera, simply return static camera motion #####
+    if is_static:
+        pred_cam_t = torch.zeros([len(imgfiles), 3])
+        pred_cam_r = torch.eye(3).expand(len(imgfiles), 3, 3)
+
+        return pred_cam_r, pred_cam_t
+
+    ##### Masked droid slam #####
+    droid, traj, c2w_scale = run_slam_hybrid(img_folder, masks=masks, calib=calib)
+    n = droid.video.counter.value
+    tstamp = droid.video.tstamp.cpu().int().numpy()[:n] # Key frames
+    
+    return traj, tstamp, c2w_scale
 
 def run_metric_slam(img_folder, masks=None, calib=None, is_static=False):
     '''
@@ -89,7 +115,7 @@ def run_metric_slam(img_folder, masks=None, calib=None, is_static=False):
     disps = droid.video.disps_up.cpu().numpy()[:n] # [KF, H, W]
     
     # TODO: NJ Visualization
-    droid.visualize_tram()
+    #droid.visualize_tram()
 
     #cv2.imwrite('/hpc2hdd/home/gzhang292/nanjie/project4/tram/vis/depth.png', disp[0] * 255)
     del droid
@@ -129,12 +155,13 @@ def run_metric_slam(img_folder, masks=None, calib=None, is_static=False):
         scales_.append(scale)
     scale = np.median(scales_)
     
-    # convert to metric-scale camera extrinsics: R_wc, T_wc
+    # convert to metric-scale camera extrinsics: R_wc, T_wca
     pred_cam_t = torch.tensor(traj[:, :3]) * scale
     pred_cam_q = torch.tensor(traj[:, 3:])
     pred_cam_r = quaternion_to_matrix(pred_cam_q[:,[3,0,1,2]])
 
-    return pred_cam_r, pred_cam_t
+    #traj[:, :3] = traj[:, :3] * scale
+    return traj, scale
 
 
 def run_slam(imagedir, masks=None, calib=None, depth=None):
@@ -188,9 +215,9 @@ def run_slam_hybrid(imagedir, masks=None, calib=None, depth=None):
         else:
             droid.track(t, image, image = None, intrinsics=intrinsics, depth=depth, mask=None)  
 
-    traj = droid.terminate(image_stream(imagedir, calib))
+    traj, c2w_scale = droid.terminate(image_stream(imagedir, calib))
 
-    return droid, traj
+    return droid, traj, c2w_scale
 
 def search_focal_length(img_folder, masks=None, stride=10, max_frame=50,
                         low=500, high=1500, step=100):

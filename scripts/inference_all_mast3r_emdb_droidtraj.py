@@ -9,8 +9,8 @@ from glob import glob
 from pycocotools import mask as masktool
 
 from lib.pipeline import video2frames, detect_segment_track
-from lib.camera import  align_cam_to_world, run_smpl_metric_slam_mast3r
-from lib.camera import run_mast3r_metric_slam, masked_droid_slam
+from lib.camera import  align_cam_to_world, run_smpl_metric_slam_mast3r, run_mast3r_metric_slam_droid
+from lib.camera import run_mast3r_metric_slam, run_droid_slam_nometric, run_metric_slam
 from lib.utils.imutils import copy_images, write_main_mask
 import pickle as pkl
 
@@ -72,7 +72,7 @@ def main(args):
         imgfiles = sorted(glob(f'{img_folder}/*.jpg'))
 
         _, masks_, tracks_  = detect_segment_track(imgfiles, seq_folder, thresh=0.25, 
-                                                   min_size=100, save_vos=args.visualize_mask)
+                                                          min_size=100, save_vos=args.visualize_mask)
         np.save(f'{seq_folder}/tracks.npy', tracks_)
         np.save(f'{seq_folder}/mask.npy', masks_)
     
@@ -81,7 +81,11 @@ def main(args):
     masks = np.array([masktool.decode(m) for m in masks_])
     masks = torch.from_numpy(masks)
     
-    traj, traj_full, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks, cam_int, seq) #2009, 7
+    traj_droid, kf_idx_droid, c2w_scale = run_droid_slam_nometric(img_folder, masks=masks, calib=cam_int)
+    
+    #traj, traj_full, pc_whole, pc, kf_idx = run_mast3r_metric_slam(img_folder, masks=masks, calib=cam_int, seq=seq)
+    
+    traj, traj_full, pc_whole, pc, kf_idx = run_mast3r_metric_slam_droid(img_folder, masks, cam_int, seq, traj_droid, None, None) #2009, 7
 
     #==========================================================
     if os.path.exists(f'{hps_folder}/hps_track_0.npy'): # We have at least one

@@ -45,7 +45,7 @@ class MotionFilter:
     def track(self, tstamp, image, depth=None, intrinsics=None, mask=None):
         """ main update operation - run on every frame in video """
 
-        Id = lietorch.SE3.Identity(1,).data.squeeze()
+        Id = lietorch.SE3.Identity(1,).data.squeeze() 
         ht = image.shape[-2] // 8
         wd = image.shape[-1] // 8
 

@@ -10,6 +10,10 @@ from mast3r_slam.retrieval_database import RetrievalDatabase
 from mast3r_slam.config import config
 import mast3r_slam.matching as matching
 
+import einops
+import sys
+sys.path.append('../..')
+from lib.vis.tools import vis_img
 
 def load_mast3r(path=None, device="cuda"):
     weights_path = (
@@ -20,7 +24,6 @@ def load_mast3r(path=None, device="cuda"):
     model = AsymmetricMASt3R.from_pretrained(weights_path).to(device)
     return model
 
-
 def load_retriever(mast3r_model, retriever_path=None, device="cuda"):
     retriever_path = (
         "data/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric_retrieval_trainingfree.pth"
@@ -29,7 +32,6 @@ def load_retriever(mast3r_model, retriever_path=None, device="cuda"):
     )
     retriever = RetrievalDatabase(retriever_path, backbone=mast3r_model, device=device)
     return retriever
-
 
 @torch.inference_mode
 def decoder(model, feat1, feat2, pos1, pos2, shape1, shape2):
@@ -43,14 +45,11 @@ def decoder(model, feat1, feat2, pos1, pos2, shape1, shape2):
 def downsample(X, C, D, Q):
     downsample = config["dataset"]["img_downsample"]
     if downsample > 1:
-        # C and Q: (...xHxW)
-        # X and D: (...xHxWxF)
         X = X[..., ::downsample, ::downsample, :].contiguous()
         C = C[..., ::downsample, ::downsample].contiguous()
         D = D[..., ::downsample, ::downsample, :].contiguous()
         Q = Q[..., ::downsample, ::downsample].contiguous()
     return X, C, D, Q
-
 
 @torch.inference_mode
 def mast3r_symmetric_inference(model, frame_i, frame_j):
@@ -114,7 +113,6 @@ def mast3r_decode_symmetric_batch(
     X, C, D, Q = downsample(X, C, D, Q)
     return X, C, D, Q
 
-
 @torch.inference_mode
 def mast3r_inference_mono(model, frame):
     if frame.feat is None:
@@ -133,15 +131,15 @@ def mast3r_inference_mono(model, frame):
     X, C, D, Q = torch.stack(X), torch.stack(C), torch.stack(D), torch.stack(Q)
     X, C, D, Q = downsample(X, C, D, Q)
 
-    Xii, Xji = einops.rearrange(X, "b h w c -> b (h w) c")
-    Cii, Cji = einops.rearrange(C, "b h w -> b (h w) 1")
+    Xii, _ = einops.rearrange(X, "b h w c -> b (h w) c")
+    Cii, _ = einops.rearrange(C, "b h w -> b (h w) 1")
     if frame.mask != None: #NOTE 4.13 : confidence Mask - NJ
         Xii = Xii * einops.rearrange(1-frame.mask, "h w -> (h w) 1")
         Cii = Cii * einops.rearrange(1-frame.mask, "h w -> (h w) 1")
-
+       
     return Xii, Cii
 
-def mast3r_match_symmetric(model, feat_i, pos_i, feat_j, pos_j, shape_i, shape_j):
+def mast3r_match_symmetric(model, feat_i, pos_i, feat_j, pos_j, shape_i, shape_j, mask_i = None, mask_j = None):
     X, C, D, Q = mast3r_decode_symmetric_batch(
         model, feat_i, pos_i, feat_j, pos_j, shape_i, shape_j
     )
@@ -152,6 +150,14 @@ def mast3r_match_symmetric(model, feat_i, pos_i, feat_j, pos_j, shape_i, shape_j
     Xii, Xji, Xjj, Xij = X[0], X[1], X[2], X[3]
     Dii, Dji, Djj, Dij = D[0], D[1], D[2], D[3]
     Qii, Qji, Qjj, Qij = Q[0], Q[1], Q[2], Q[3]
+    
+    Xii = mask_i.unsqueeze(-1) * Xii
+    Dii = mask_i.unsqueeze(-1) * Dii
+    Qii = mask_i * Qii
+    
+    Xjj = mask_j.unsqueeze(-1) * Xjj
+    Djj = mask_j.unsqueeze(-1) * Djj
+    Qjj = mask_j * Qjj
 
     # Always matching both
     X11 = torch.cat((Xii, Xjj), dim=0)
@@ -159,9 +165,7 @@ def mast3r_match_symmetric(model, feat_i, pos_i, feat_j, pos_j, shape_i, shape_j
     D11 = torch.cat((Dii, Djj), dim=0)
     D21 = torch.cat((Dji, Dij), dim=0)
 
-    # tic()
     idx_1_to_2, valid_match_2 = matching.match(X11, X21, D11, D21)
-    # toc("Match")
 
     # TODO: Avoid this
     match_b = X11.shape[0] // 2
@@ -180,7 +184,6 @@ def mast3r_match_symmetric(model, feat_i, pos_i, feat_j, pos_j, shape_i, shape_j
         Qji.view(b, -1, 1),
         Qij.view(b, -1, 1),
     )
-
 
 @torch.inference_mode
 def mast3r_asymmetric_inference(model, frame_i, frame_j):
@@ -224,37 +227,16 @@ def mast3r_match_asymmetric(model, frame_i, frame_j, idx_i2j_init=None):
     Dii, Dji = D[:b], D[b:]
     Qii, Qji = Q[:b], Q[b:]
     
-    '''
-    (1) No full frame_j + full frame_i:0.46
-    (2) full frame_j + full frame_i: 0.52
-    (3) No full frame_j + only mask Cii: 0.47
-    
-    Best: 0.40
-    if frame_i.mask != None:
-        Xii = (1 - frame_i.mask).unsqueeze(0).unsqueeze(-1) * Xii
-        Cii = (1 - frame_i.mask).unsqueeze(0) * Cii
-        Dii = (1 - frame_i.mask).unsqueeze(0).unsqueeze(-1) * Dii
-        Qii = (1 - frame_i.mask).unsqueeze(0) * Qii
+    if frame_i.mask != None and frame_j.mask != None:
+        Xii = Xii * (1-frame_i.mask).unsqueeze(0).unsqueeze(-1)
+        #Xji = Xji * (1-frame_j.mask).unsqueeze(0).unsqueeze(-1)
+        Dii = Dii * (1-frame_i.mask).unsqueeze(0).unsqueeze(-1)
+        #Dji = Dji * (1-frame_j.mask).unsqueeze(0).unsqueeze(-1)
+        Cii = Cii * (1-frame_i.mask).unsqueeze(0)
+        #Cji = Cji * (1-frame_j.mask).unsqueeze(0)
+        Qii = Qii * (1-frame_i.mask).unsqueeze(0)
+        #Qji = Qji * (1-frame_j.mask).unsqueeze(0)
         
-    if frame_j.mask != None:
-        #Xji = (1 - frame_j.mask).unsqueeze(0).unsqueeze(-1) * Xji
-        Cji = (1 - frame_j.mask).unsqueeze(0) * Cji
-        #Dji = (1 - frame_j.mask).unsqueeze(0).unsqueeze(-1) * Dji
-        Qji = (1 - frame_j.mask).unsqueeze(0) * Qji
-    
-    '''
-    # if frame_i.mask != None:
-        # Xii = (1 - frame_i.mask).unsqueeze(0).unsqueeze(-1) * Xii
-        # Cii = (1 - frame_i.mask).unsqueeze(0) * Cii
-        # Dii = (1 - frame_i.mask).unsqueeze(0).unsqueeze(-1) * Dii
-        # Qii = (1 - frame_i.mask).unsqueeze(0) * Qii
-        
-    # if frame_j.mask != None:
-        #Xji = (1 - frame_j.mask).unsqueeze(0).unsqueeze(-1) * Xji
-        # Cji = (1 - frame_j.mask).unsqueeze(0) * Cji
-        #Dji = (1 - frame_j.mask).unsqueeze(0).unsqueeze(-1) * Dji
-        # Qji = (1 - frame_j.mask).unsqueeze(0) * Qji
-    
     idx_i2j, valid_match_j = matching.match(
         Xii, Xji, Dii, Dji, idx_1_to_2_init=idx_i2j_init
     )
@@ -265,11 +247,8 @@ def mast3r_match_asymmetric(model, frame_i, frame_j, idx_i2j_init=None):
     Dii, Dji = einops.rearrange(D, "b h w c -> b (h w) c")
     Qii, Qji = einops.rearrange(Q, "b h w -> b (h w) 1")
 
-    if frame_i.mask != None: #NOTE 4.13 : confidence Mask - NJ
-        Cii = Cii * einops.rearrange(1-frame_i.mask, "h w -> (h w) 1")
-        
-    # if frame_j.mask != None: #NOTE 4.14 掉点？
-    #     Cji = Cji * einops.rearrange(1-frame_j.mask, "h w -> (h w) 1") 
+    # if frame_i.mask != None: #NOTE 4.13 : confidence Mask - NJ
+    #     Cii = Cii * einops.rearrange(1-frame_i.mask, "h w -> (h w) 1")
     
     return idx_i2j, valid_match_j, Xii, Cii, Qii, Xji, Cji, Qji
 

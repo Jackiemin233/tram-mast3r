@@ -115,5 +115,3 @@ class DroidFrontend:
         # do update
         elif self.is_initialized and self.t1 < self.video.counter.value:
             self.__update()
-
-        

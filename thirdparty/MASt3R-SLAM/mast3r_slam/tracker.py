@@ -11,6 +11,10 @@ from mast3r_slam.nonlinear_optimizer import check_convergence, huber
 from mast3r_slam.config import config
 from mast3r_slam.mast3r_utils import mast3r_match_asymmetric
 
+import einops
+import sys
+sys.path.append('../..')
+from lib.vis.tools import vis_img
 
 class FrameTracker:
     def __init__(self, model, frames, device):
@@ -27,7 +31,7 @@ class FrameTracker:
 
     def track(self, frame: Frame):
         keyframe = self.keyframes.last_keyframe()
-
+        
         idx_f2k, valid_match_k, Xff, Cff, Qff, Xkf, Ckf, Qkf = mast3r_match_asymmetric(
             self.model, frame, keyframe, idx_i2j_init=self.idx_f2k
         )
@@ -135,6 +139,13 @@ class FrameTracker:
         # Average confidence
         Cf = frame.get_average_conf()
         Ck = keyframe.get_average_conf()
+        
+        # NOTE: Mask the confidence
+        #if frame.mask != None and keyframe.mask != None:
+            # Xf = Xf * einops.rearrange(1-frame.mask, "h w -> (h w) 1")
+            # Xk = Xk * einops.rearrange(1-keyframe.mask, "h w -> (h w) 1")
+            # Cf = Cf * einops.rearrange(1-frame.mask, "h w -> (h w) 1")
+            # Ck = Ck * einops.rearrange(1-keyframe.mask, "h w -> (h w) 1")
 
         meas_k = None
         valid_meas_k = None
@@ -258,7 +269,7 @@ class FrameTracker:
             old_cost = new_cost
 
             if step == self.cfg["max_iters"] - 1:
-                print(f"max iters reached {last_error}") #BUG:???
+                print(f"max iters reached {last_error}")
 
         # Assign new pose based on relative pose
         T_WCf = T_WCk * T_CkCf

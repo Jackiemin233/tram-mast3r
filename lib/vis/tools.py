@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
+import einops
 
 
 def read_image(path, scale=1):
@@ -823,3 +824,12 @@ def imshow_keypoints(
                         cv2.line(img, pos1, pos2, color, thickness=thickness)
 
     return img
+
+def vis_img(img, h=512, w=384, path='./vis.png'):
+    if len(img.shape) == 2 and img.shape[-1] == 1:
+        img = img.reshape((h, w, 1))
+    elif len(img.shape) == 2 and img.shape[-1] == 3:
+        img = img.reshape((h, w, 3))
+    elif len(img.shape) == 4:
+        img = img[0]
+    cv2.imwrite(path, img.detach().cpu().numpy() * 255)
