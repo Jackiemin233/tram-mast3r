@@ -136,7 +136,7 @@ def main(args):
 
 if __name__ == '__main__':
     import torch.multiprocessing as mp
-    mp.set_start_method("spawn")
+    # mp.set_start_method("spawn")
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=str, default='./dataset/P9/79_outdoor_walk_rectangle', help='path to your EMDB Test Samples')

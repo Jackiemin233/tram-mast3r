@@ -5,35 +5,61 @@ import os
 import glob
 import argparse
 import json
-
+import statistics
 
 emdb2_names = [
-    # "09_outdoor_walk",
-    # "19_indoor_walk_off_mvs",
-    # "20_outdoor_walk",
-    # "24_outdoor_long_walk",
-    # "27_indoor_walk_off_mvs",
-    # "28_outdoor_walk_lunges",
-    # "29_outdoor_stairs_up",
+    "09_outdoor_walk",
+    "19_indoor_walk_off_mvs",
+    "20_outdoor_walk",
+    "24_outdoor_long_walk",
+    "27_indoor_walk_off_mvs",
+    "28_outdoor_walk_lunges",
+    "29_outdoor_stairs_up",
     "30_outdoor_stairs_down",
-    # "35_indoor_walk",
-    # "36_outdoor_long_walk",
-    # "37_outdoor_run_circle",
-    # "40_indoor_walk_big_circle",
-    # "48_outdoor_walk_downhill",
-    # "49_outdoor_big_stairs_down",
-    # "55_outdoor_walk",
-    # "56_outdoor_stairs_up_down",
-    # "57_outdoor_rock_chair",
-    # "58_outdoor_parcours",
-    # "61_outdoor_sit_lie_walk",
-    # "64_outdoor_skateboard",
-    # "65_outdoor_walk_straight",
-    # "77_outdoor_stairs_up",
-    # "78_outdoor_stairs_up_down",
-    # "79_outdoor_walk_rectangle",
-    # "80_outdoor_walk_big_circle",
+    "35_indoor_walk",
+    "36_outdoor_long_walk",
+    "37_outdoor_run_circle",
+    "40_indoor_walk_big_circle",
+    "48_outdoor_walk_downhill",
+    "49_outdoor_big_stairs_down",
+    "55_outdoor_walk",
+    "56_outdoor_stairs_up_down",
+    "57_outdoor_rock_chair",
+    "58_outdoor_parcours",
+    "61_outdoor_sit_lie_walk",
+    "64_outdoor_skateboard",
+    "65_outdoor_walk_straight",
+    "77_outdoor_stairs_up",
+    "78_outdoor_stairs_up_down",
+    "79_outdoor_walk_rectangle",
+    "80_outdoor_walk_big_circle",
 ]
+
+import torch
+
+def robust_ratio_fit(ratios, sigma=0.2):
+    ratios = torch.tensor(ratios)
+
+    def gmof(x, sigma):
+        return (x ** 2) / (x ** 2 + sigma ** 2)
+
+    def loss_fn(x):
+        return gmof(ratios - x, sigma).mean()
+
+    x0 = torch.tensor([torch.median(ratios)], requires_grad=True)
+    optimizer = torch.optim.LBFGS([x0])
+
+    def closure():
+        optimizer.zero_grad()
+        loss = loss_fn(x0)
+        loss.backward()
+        return loss
+
+    for _ in range(10):
+        optimizer.step(closure)
+
+    return x0.item()
+
 
 def umeyama_with_scale(src, tgt):
     assert src.shape == tgt.shape
@@ -72,6 +98,15 @@ def compute_bbox_size(points):
     min_pt = points.min(axis=0)
     max_pt = points.max(axis=0)
     return max_pt - min_pt
+
+def trimmed_mean(ratios, trim_percent=0.05):
+    ratios = np.array(ratios)
+    sorted_ratios = np.sort(ratios)
+    n = len(ratios)
+    trim_n = int(n * trim_percent)
+    trimmed = sorted_ratios[trim_n : n - trim_n]
+    return np.mean(trimmed)
+
 
 def process_frame(args, seq_name, frame_id):
     base_log_path = f"./logs_mast3r_slam/{seq_name}/keyframe_pcd/image"
@@ -190,7 +225,7 @@ def process_frame(args, seq_name, frame_id):
     # print(bbox_moge)
     # print(bbox_smpl)
     ratios =  bbox_smpl / bbox_moge
-    print(f"[{frame_id}] Bounding box Y-axis ratio (SMPL/SLAM): {ratios[1]:.4f}")
+    # print(f"[{frame_id}] Bounding box Y-axis ratio (SMPL/SLAM): {ratios[1]:.4f}")
     # ratio_list.append(ratios[1])
     return s, ratios[1]
 
@@ -221,15 +256,20 @@ def main(args):
                 # if 0.9 < ratio < 1.4:
                 if ratio > 0:
                     ratio = ratio / can2w
-                    print(f"[{frame_id}] SMPL/SLAM: {ratio:.4f}")
+                    # print(f"[{frame_id}] SMPL/SLAM: {ratio:.4f}")
                     ratio_list.append(ratio)
             except Exception as e:
                 print(f"[{frame_id}] Error processing frame: {e}")
 
         # print("\n=== Summary ===")
         if ratio_list:
-            avg_ratio = sum(ratio_list) / len(ratio_list)
+            # avg_ratio = sum(ratio_list) / len(ratio_list)
+            avg_ratio = statistics.median(ratio_list)
             print(f"{seq} Average SMPL/SLAM ratio: {avg_ratio:.4f}")
+            # avg_ratio = robust_ratio_fit(ratio_list)
+            # print(f"{seq} Robust SMPL/SLAM ratio: {avg_ratio:.4f}")
+            avg_ratio = trimmed_mean(ratio_list)
+            print(f"{seq} Trimmed Average SMPL/SLAM ratio: {avg_ratio:.4f}")
         else:
             avg_ratio = None
             print(f"{seq} Average SMPL/SLAM ratio WRONG !!!!!!!!!!")
@@ -246,10 +286,11 @@ def main(args):
             }, f, indent=4)
         print(f"Saved stats to {stats_output_path}")
     
-    with open("avg_ratios_new.json", "w") as f:
+    save_json_name = "avg_ratios_median.json"
+    with open(f"{save_json_name}", "w") as f:
         json.dump(avg_ratio_dict, f, indent=4)
     
-    print(f"Saved stats to avg_ratios.json")
+    print(f"Saved stats to {save_json_name}.json")
 
 
 
